@@ -2,11 +2,13 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useMemo } from 'react';
-import { FaWhatsapp } from 'react-icons/fa';
+import { Heart, ShoppingCart, Eye } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { formatGHS } from '@/lib/currencyformat';
+import { useAddToCartMutation, useAddToWishlistMutation } from '@/lib/api/commerce';
+import { ApiError } from '@/lib/api/http';
 
 type Img = { id?: number; image: string; is_primary?: boolean };
 type Product = {
@@ -20,16 +22,32 @@ type Product = {
   main_image_url?: string | null;
   is_in_stock?: boolean;
   stock_quantity?: number;
+  brand?: string | null;
+  brand_display?: string | null;
+  condition?: string | null;
+  category?: { name?: string | null } | null;
 };
 
 const toNum = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
-const WHATSAPP_NUMBER =
-  (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '').replace(/[^\d]/g, '');
-
 function normalizeUrl(u?: string | null) {
   if (!u) return undefined;
   return u.startsWith('http://') ? u.replace(/^http:\/\//, 'https://') : u;
+}
+
+function getApiMessage(err: unknown, fallback: string) {
+  if (err instanceof ApiError) {
+    const data = err.data || {};
+    return (
+      data.detail ||
+      data.product?.[0] ||
+      data.product_id?.[0] ||
+      data.quantity?.[0] ||
+      data.non_field_errors?.[0] ||
+      fallback
+    );
+  }
+  return fallback;
 }
 
 export default function ProductCardCol({
@@ -37,6 +55,8 @@ export default function ProductCardCol({
 }: {
   product: Product;
 }) {
+  const addToCart = useAddToCartMutation();
+  const addToWishlist = useAddToWishlistMutation();
   const img =
     normalizeUrl(product.main_image_url) ||
     normalizeUrl(product.main_image) ||
@@ -47,56 +67,72 @@ export default function ProductCardCol({
   const d = product.discount_price == null ? NaN : toNum(product.discount_price);
   const hasDiscount = Number.isFinite(d) && d > 0 && d < price;
   const percent = hasDiscount && price > 0 ? Math.round(((price - d) / price) * 100) : 0;
+  const inStock =
+    product.is_in_stock ??
+    (typeof product.stock_quantity === 'number' ? product.stock_quantity > 0 : true);
 
   const finalPrice = hasDiscount ? d : price;
-
-  const chatLink = useMemo(() => {
-    const base =
-      typeof window !== 'undefined'
-        ? window.location.origin
-        : '';
-    const url = base ? `${base}/product/${product.slug || product.id}` : '';
-    const msg = `Hello, I'm interested in:\n${product.name}\nPrice: ${formatGHS(finalPrice)}\n${url}`;
-    return WHATSAPP_NUMBER
-      ? `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
-      : '#';
-  }, [product.id, product.slug, product.name, finalPrice]);
-
   const href = `/product/${product.slug || product.id}`;
+  const stockQty = toNum(product.stock_quantity);
+  const brand = product.brand_display || product.brand;
+  const category = product.category?.name;
 
   return (
-    <div className="group rounded-2xl border bg-white shadow-sm transition hover:shadow-md">
-      {/* Whole top area is clickable */}
-      <Link
-        href={href}
-        className="grid grid-cols-[96px_1fr] gap-3 p-3 sm:grid-cols-[120px_1fr] sm:p-4"
-        aria-label={`View ${product.name}`}
-      >
-        <div className="relative overflow-hidden rounded-xl bg-slate-50 ring-1 ring-black/5">
-          <div className="relative h-[86px] w-[86px] sm:h-[110px] sm:w-[110px]">
+    <div className="group overflow-hidden rounded-xl border bg-white shadow-sm ring-1 ring-black/5 transition hover:shadow-md">
+      <div className="grid grid-cols-[112px_1fr] gap-3 p-3 sm:grid-cols-[156px_1fr] sm:gap-5 sm:p-4">
+        <Link
+          href={href}
+          className="relative overflow-hidden rounded-lg bg-slate-50 ring-1 ring-black/5"
+          aria-label={`View ${product.name}`}
+        >
+          <div className="relative h-[112px] w-[112px] sm:h-[156px] sm:w-[156px]">
             <Image
               src={img}
               alt={product.name}
               fill
-              sizes="(max-width: 640px) 86px, 110px"
+              sizes="(max-width: 640px) 112px, 156px"
               className="object-contain transition-transform duration-300 group-hover:scale-[1.04]"
             />
           </div>
 
-          {hasDiscount && (
+          {!inStock ? (
+            <span className="absolute left-2 top-2 rounded-full bg-gray-950 px-2 py-1 text-[10px] font-bold text-white">
+              Out
+            </span>
+          ) : hasDiscount ? (
             <span className="absolute left-2 top-2 rounded-full bg-red-500 px-2 py-1 text-[10px] font-bold text-white">
               {percent}% OFF
             </span>
-          )}
-        </div>
+          ) : null}
+        </Link>
 
-        <div className="min-w-0">
-          <h3
-            className="line-clamp-2 text-sm font-semibold leading-snug text-gray-900 group-hover:text-yellow-700"
-            title={product.name}
-          >
-            {product.name}
-          </h3>
+        <div className="flex min-w-0 flex-col">
+          <div className="flex flex-wrap gap-2">
+            {category ? (
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                {category}
+              </span>
+            ) : null}
+            {brand ? (
+              <span className="rounded-full bg-yellow-50 px-2.5 py-1 text-[11px] font-semibold text-yellow-800">
+                {brand}
+              </span>
+            ) : null}
+            {product.condition ? (
+              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
+                {product.condition}
+              </span>
+            ) : null}
+          </div>
+
+          <Link href={href}>
+            <h3
+              className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-gray-950 transition group-hover:text-yellow-700 sm:text-base"
+              title={product.name}
+            >
+              {product.name}
+            </h3>
+          </Link>
 
           <div className="mt-2">
             {hasDiscount ? (
@@ -115,50 +151,64 @@ export default function ProductCardCol({
             )}
           </div>
 
-          {product.is_in_stock === false && (
+          {!inStock && (
             <div className="mt-2 inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
               Out of stock
             </div>
           )}
-        </div>
-      </Link>
 
-      {/* CTA row */}
-      <div className="px-3 pb-3 sm:px-4 sm:pb-4">
-        <div className="grid grid-cols-2 gap-2">
-          <Link href={href}>
+          {inStock && stockQty > 0 ? (
+            <p className="mt-2 text-xs font-medium text-gray-500">{stockQty} in stock</p>
+          ) : null}
+
+          <div className="mt-auto grid grid-cols-1 gap-2 pt-4 sm:grid-cols-[1fr_1fr_auto]">
+            <Link href={href}>
+              <Button
+                variant="outline"
+                className="h-10 w-full rounded-lg border-gray-300 font-semibold transition hover:border-yellow-500 hover:bg-yellow-50 hover:text-yellow-700"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                View
+              </Button>
+            </Link>
+
+            <Button
+              className="h-10 w-full rounded-lg bg-yellow-500 font-semibold text-black transition hover:bg-yellow-600"
+              disabled={!inStock || addToCart.isPending}
+              onClick={async () => {
+                if (!inStock) return;
+                try {
+                  await addToCart.mutateAsync({ productId: product.id, quantity: 1 });
+                  toast.success('Added to cart.');
+                } catch (err) {
+                  toast.error(getApiMessage(err, 'Could not add to cart.'));
+                }
+              }}
+            >
+              <ShoppingCart className="mr-2 h-4 w-4" />
+              {inStock ? 'Add to Cart' : 'Sold Out'}
+            </Button>
+
             <Button
               variant="outline"
-              className="
-                h-10 w-full rounded-xl font-semibold
-                border-gray-300
-                hover:bg-yellow-50 hover:border-yellow-500 hover:text-yellow-700
-                transition
-              "
+              size="icon"
+              className="hidden h-10 w-10 rounded-lg border-gray-300 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 sm:inline-flex"
+              disabled={!inStock || addToWishlist.isPending}
+              onClick={async () => {
+                if (!inStock) return;
+                try {
+                  await addToWishlist.mutateAsync(product.id);
+                  toast.success('Saved to wishlist.');
+                } catch (err) {
+                  toast.error(getApiMessage(err, 'Could not save item.'));
+                }
+              }}
+              aria-label="Add to wishlist"
             >
-              View
+              <Heart className="h-4 w-4" />
             </Button>
-          </Link>
-
-          <a href={chatLink} target="_blank" rel="noopener noreferrer">
-            <Button
-              className="
-                h-10 w-full rounded-xl font-semibold
-                bg-green-600 text-white hover:bg-green-700 transition
-              "
-              disabled={!WHATSAPP_NUMBER}
-            >
-              <FaWhatsapp className="mr-2 text-lg" />
-              Chat Us
-            </Button>
-          </a>
+          </div>
         </div>
-
-        {!WHATSAPP_NUMBER && (
-          <p className="mt-2 text-xs text-red-600">
-            Set NEXT_PUBLIC_WHATSAPP_NUMBER in .env.local to enable Chat.
-          </p>
-        )}
       </div>
     </div>
   );

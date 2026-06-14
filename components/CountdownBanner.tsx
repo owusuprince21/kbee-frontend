@@ -223,7 +223,7 @@ export default function CountdownBanner() {
               <Link href={finished ? '/shop' : deal.href} className="inline-block">
                 <Button
                   disabled={finished}
-                  className="mt-5 rounded-full bg-indigo-600 px-6 py-4 text-white hover:bg-indigo-700 disabled:bg-gray-400"
+                  className="mt-5 rounded-full bg-yellow-500 px-6 py-4 font-bold text-black shadow-sm transition hover:bg-yellow-600 hover:shadow-md disabled:bg-gray-400 disabled:text-white"
                 >
                   {finished ? 'Offer Ended' : deal.ctaText}
                 </Button>

@@ -27,15 +27,24 @@ type ReviewApi = {
   comment?: string | null;
   created_at?: string | null;
   customer_name?: string | null;
+  product?: number | string | { id?: number | string; slug?: string | null; name?: string | null } | null;
+  product_name?: string | null;
+  product_slug?: string | null;
+  product_image?: string | null;
   customer?: { id?: number | string; full_name?: string | null; email?: string | null; photo_url?: string | null; firebase_uid?: string | null } | null;
 };
 
 type TestimonialItem = {
+  id?: number;
   comment: string;
   rating: number;
   full_name?: string | null;
   photo_url?: string | null;
   customer?: { full_name?: string | null; photo_url?: string | null } | null;
+  product?: ReviewApi['product'];
+  product_name?: string | null;
+  product_slug?: string | null;
+  product_image?: string | null;
 };
 
 const REVIEWS_ENDPOINT = '/api/reviews/?page_size=8&ordering=-created_at';
@@ -95,14 +104,27 @@ export default function Home() {
 
         // testimonials
         const reviews: ReviewApi[] = (reviewsRes?.results ?? reviewsRes ?? []) as ReviewApi[];
+        const seenReviews = new Set<string>();
         setTestimonials(
-          reviews.map((r) => ({
-            comment: String(r.comment ?? ''),
-            rating: Number(r.rating) || 0,
-            customer: r.customer ?? null,
-            full_name: r.customer?.full_name ?? r.customer_name ?? null,
-            photo_url: r.customer?.photo_url ?? null,
-          }))
+          reviews
+            .filter((r) => {
+              const key = r.id ? `id:${r.id}` : `${r.customer_name || r.customer?.full_name || ''}:${r.comment || ''}`;
+              if (seenReviews.has(key)) return false;
+              seenReviews.add(key);
+              return true;
+            })
+            .map((r) => ({
+              id: r.id,
+              comment: String(r.comment ?? ''),
+              rating: Number(r.rating) || 0,
+              customer: r.customer ?? null,
+              full_name: r.customer?.full_name ?? r.customer_name ?? null,
+              photo_url: r.customer?.photo_url ?? null,
+              product: r.product ?? null,
+              product_name: r.product_name ?? null,
+              product_slug: r.product_slug ?? null,
+              product_image: r.product_image ?? null,
+            }))
         );
 
         // hot items
@@ -128,6 +150,9 @@ export default function Home() {
       <PromoFlex />
       <ServicesBar />
 
+      {/* Countdown self-fetches & ticks */}
+      <CountdownBanner />
+
       <BrowseByCategory
         categories={categories.map((c) => ({
           name: c.name,
@@ -147,11 +172,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Countdown self-fetches & ticks */}
-      <CountdownBanner />
+
 
       {/* Optional static promo banners you already had */}
-      <HotDealBanners />
+      <HotDealBanners categories={categories} />
 
       <section className="py-16">
         <div className="container mx-auto px-4">

@@ -441,7 +441,7 @@ export default function ProfilePage() {
 
                     {/* Header */}
                     <div className="mb-2 pr-28">
-                      <div className="text-lg font-semibold">Order #{o.id}</div>
+                      <div className="text-lg font-semibold">{o.code || `Order ID ${o.id}`}</div>
                       <div className="text-sm text-gray-500">Placed {fmtDateShort(o.created_at)}</div>
                     </div>
 

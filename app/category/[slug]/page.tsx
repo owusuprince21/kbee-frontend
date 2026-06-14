@@ -1,12 +1,19 @@
 // app/category/[slug]/page.tsx
-import Image from 'next/image';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ProductGrid from '@/components/ProductGrid';
+import { createPageMetadata } from '@/lib/seo';
 
 type PageProps = {
-  params: { slug: string };
-  searchParams: {
+  params: Promise<{ slug: string }> | { slug: string };
+  searchParams: Promise<{
+    page?: string;
+    page_size?: string;
+    ordering?: string;
+    q?: string;
+    brand?: string;
+  }> | {
     page?: string;
     page_size?: string;
     ordering?: string;
@@ -25,20 +32,89 @@ function qs(params: Record<string, any>) {
   const s = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (v === undefined || v === null || v === '') continue;
+    if (typeof v === 'string' && ['undefined', 'null', ''].includes(v.trim().toLowerCase())) continue;
     s.append(k, String(v));
   }
   const q = s.toString();
   return q ? `?${q}` : '';
 }
 
-export default async function CategoryPage({ params, searchParams }: PageProps) {
-  const slug = decodeURIComponent(params.slug);
+function brandLabel(product: any) {
+  return product?.brand_display || product?.brand || '';
+}
 
-  const page     = Number(searchParams.page ?? 1) || 1;
-  const pageSize = Number(searchParams.page_size ?? 24) || 24;
-  const ordering = searchParams.ordering || '-created_at';
-  const query    = searchParams.q || undefined;
-  const brand    = searchParams.brand || undefined;
+function categoryBrandLinks(products: any[]) {
+  const brands = new Map<string, string>();
+  for (const product of products) {
+    const slug = String(product?.brand || '').trim().toLowerCase();
+    if (!slug || slug === 'undefined' || slug === 'null' || slug === 'accessories') continue;
+    if (!brands.has(slug)) brands.set(slug, brandLabel(product));
+  }
+  return Array.from(brands.entries()).map(([brandSlug, name]) => ({
+    slug: brandSlug,
+    name: String(name || brandSlug),
+  }));
+}
+
+function titleize(value: string) {
+  return value
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const resolvedParams = await Promise.resolve(params);
+  const slug = decodeURIComponent(resolvedParams.slug || '');
+
+  if (!slug || slug === 'undefined' || slug === 'null') {
+    return createPageMetadata({
+      title: 'Category',
+      description: 'Browse KBee Computers product categories in Ghana.',
+      path: '/shop',
+    });
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/categories/${encodeURIComponent(slug)}/`, {
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) throw new Error('Category not found');
+    const category = await res.json();
+    const name = category?.name || titleize(slug);
+    return createPageMetadata({
+      title: name,
+      description:
+        category?.description ||
+        `Shop ${name} at KBee Computers Ghana. Find quality new and UK used products with reliable support and delivery.`,
+      path: `/category/${slug}`,
+      image: category?.image || category?.image_url || undefined,
+    });
+  } catch {
+    const name = titleize(slug);
+    return createPageMetadata({
+      title: name,
+      description: `Shop ${name} at KBee Computers Ghana.`,
+      path: `/category/${slug}`,
+    });
+  }
+}
+
+export default async function CategoryPage({ params, searchParams }: PageProps) {
+  const resolvedParams = await Promise.resolve(params);
+  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const slug = decodeURIComponent(resolvedParams.slug || '');
+
+  if (!slug || slug === 'undefined' || slug === 'null') {
+    notFound();
+  }
+
+  const page     = Number(resolvedSearchParams.page ?? 1) || 1;
+  const pageSize = Number(resolvedSearchParams.page_size ?? 24) || 24;
+  const ordering = resolvedSearchParams.ordering || '-created_at';
+  const query    = resolvedSearchParams.q && resolvedSearchParams.q !== 'undefined' ? resolvedSearchParams.q : undefined;
+  const brand    = resolvedSearchParams.brand && resolvedSearchParams.brand !== 'undefined' ? resolvedSearchParams.brand : undefined;
 
   // 1) Get the category by slug (your backend has /api/categories/<slug>/)
   const catRes = await fetch(`${API_BASE}/api/categories/${encodeURIComponent(slug)}/`, {
@@ -78,6 +154,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       ? payload
       : [];
   }
+  const brandLinks = categoryBrandLinks(products);
 
   // Optional: if a valid category has *zero* products, show an empty state (not a full 404).
   return (
@@ -92,24 +169,26 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 
         {category.image && (
           <div className="relative hidden h-16 w-16 overflow-hidden rounded-full ring-1 ring-slate-200 md:block">
-            <Image
+            <img
               src={normalize(category.image) || '/placeholder.jpg'}
               alt={category.name}
-              fill
-              className="object-cover"
-              sizes="64px"
+              className="h-full w-full object-cover"
             />
           </div>
         )}
       </div>
 
-      {slug === 'laptops' && (
+      {brandLinks.length > 0 && (
         <div className="mb-6 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-          Browse laptops by brand:{' '}
-          <Link href="/category/laptops/brand/dell" className="text-indigo-600 hover:underline">Dell</Link>{' · '}
-          <Link href="/category/laptops/brand/hp" className="text-indigo-600 hover:underline">HP</Link>{' · '}
-          <Link href="/category/laptops/brand/lenovo" className="text-indigo-600 hover:underline">Lenovo</Link>{' · '}
-          <Link href="/category/laptops/brand/apple" className="text-indigo-600 hover:underline">Apple</Link>
+          Browse by brand:{' '}
+          {brandLinks.map((item, index) => (
+            <span key={item.slug}>
+              {index > 0 && ' · '}
+              <Link href={`/category/${slug}/brand/${item.slug}`} className="text-indigo-600 hover:underline">
+                {item.name}
+              </Link>
+            </span>
+          ))}
         </div>
       )}
 

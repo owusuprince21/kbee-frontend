@@ -35,6 +35,14 @@ function buildFirebaseHeaders(user: unknown): HeadersInit {
   return h;
 }
 const toNum = (n: unknown) => (Number.isFinite(Number(n)) ? Number(n) : 0);
+function stockLimit(product?: ServerProduct) {
+  if (product?.stock_quantity === undefined || product?.stock_quantity === null || product?.stock_quantity === '') {
+    return null;
+  }
+  const stock = Number(product?.stock_quantity ?? 0);
+  if (product?.is_in_stock === false) return 0;
+  return Number.isFinite(stock) && stock > 0 ? Math.floor(stock) : 0;
+}
 
 /* ---------- server cart types ---------- */
 type ServerProduct = {
@@ -45,6 +53,8 @@ type ServerProduct = {
   discount_price?: string | number | null;
   images?: { image?: string | null }[];
   main_image_url?: string | null;
+  stock_quantity?: number | string;
+  is_in_stock?: boolean;
 };
 type ServerCartItem = {
   id: number;
@@ -108,14 +118,14 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
     }
   };
 
-  // When the drawer opens, load cart and (once) migrate local items
+  // When the drawer opens, load cart and migrate local items for signed-in users.
   useEffect(() => {
-    if (!isOpen || !user) return;
+    if (!isOpen) return;
     (async () => {
       setLoading(true);
       try {
         await fetchServerCart();
-        await migrateLocalToServer();
+        if (user) await migrateLocalToServer();
         await fetchServerCart();
       } finally {
         setLoading(false);
@@ -125,8 +135,9 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   }, [isOpen, user]);
 
   // server-backed actions
-  const changeQty = async (itemId: number, qty: number) => {
+  const changeQty = async (itemId: number, qty: number, maxQty?: number | null) => {
     qty = Math.max(1, qty);
+    if (maxQty != null && maxQty > 0) qty = Math.min(qty, maxQty);
     const data = await http<ServerCart>(`/api/cart/update_item/${itemId}/`, {
       method: 'PATCH',
       headers,
@@ -191,10 +202,6 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
           <div className="flex-1 space-y-4 overflow-y-auto p-5">
             {!mounted || loading ? (
               skeleton
-            ) : !user ? (
-              <div className="grid place-items-center py-16 text-center text-gray-600">
-                <p>Please sign in to use your cart.</p>
-              </div>
             ) : items.length === 0 ? (
               <div className="grid place-items-center py-16 text-center text-gray-600">
                 <p>{syncing ? 'Syncing…' : 'Your cart is empty.'}</p>
@@ -210,6 +217,10 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                     ? discount
                     : price || toNum(item.unit_price);
                 const lineTotal = perUnit * Math.max(1, toNum(item.quantity));
+                const maxQty = stockLimit(p);
+                const currentQty = Math.max(1, toNum(item.quantity));
+                const atMaxStock = maxQty != null && maxQty > 0 && currentQty >= maxQty;
+                const outOfStock = maxQty === 0 || p?.is_in_stock === false;
                 const img =
                   p?.images?.[0]?.image || p?.main_image_url || '/placeholder.jpg';
 
@@ -250,25 +261,35 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                       </div>
 
                       <div className="mt-2 flex items-center gap-2">
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          onClick={() => changeQty(item.id, Math.max(1, toNum(item.quantity) - 1))}
-                          aria-label="Decrease quantity"
-                        >
+	                        <Button
+	                          size="icon"
+	                          variant="outline"
+	                          onClick={() => changeQty(item.id, Math.max(1, currentQty - 1), maxQty)}
+	                          disabled={currentQty <= 1}
+	                          aria-label="Decrease quantity"
+	                        >
                           <Minus className="h-4 w-4" />
                         </Button>
-                        <span className="w-10 text-center font-semibold">
-                          {Math.max(1, toNum(item.quantity))}
-                        </span>
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          onClick={() => changeQty(item.id, toNum(item.quantity) + 1)}
-                          aria-label="Increase quantity"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
+	                        <span className="w-10 text-center font-semibold">
+	                          {currentQty}
+	                        </span>
+	                        <Button
+	                          size="icon"
+	                          variant="outline"
+	                          onClick={() => {
+	                            if (atMaxStock || outOfStock) return;
+	                            changeQty(item.id, currentQty + 1, maxQty);
+	                          }}
+	                          disabled={atMaxStock || outOfStock}
+	                          title={atMaxStock ? `Only ${maxQty} in stock` : undefined}
+	                          aria-label="Increase quantity"
+	                        >
+	                          <Plus className="h-4 w-4" />
+	                        </Button>
+
+	                        {maxQty != null && maxQty > 0 && currentQty >= maxQty && (
+	                          <span className="text-xs text-gray-500">Max stock</span>
+	                        )}
 
                         <span className="ml-auto font-semibold">{formatGHS(lineTotal)}</span>
 

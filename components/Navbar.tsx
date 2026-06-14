@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, Menu, ChevronDown, MessageCircle } from 'lucide-react';
+import { Search, Menu, ChevronDown, ShoppingCart, Heart, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -17,23 +17,24 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import { listCategories } from '@/lib/api/categories';
+import { useCartQuery, useWishlistQuery } from '@/lib/api/commerce';
+import { useAuthStore } from '@/store/authStore';
 
 const MenuSidebar = dynamic(() => import('@/components/MenuSideBar'), { ssr: false });
 const SearchDialog = dynamic(() => import('@/components/SearchDialog'), { ssr: false });
 
 type UiCategory = { name: string; slug: string };
 
-const WHATSAPP_NUMBER =
-  (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '').replace(/[^\d]/g, ''); // digits only
-
-function waLink(message: string) {
-  const text = encodeURIComponent(message);
-  if (!WHATSAPP_NUMBER) return '#';
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${text}`;
+function validSlug(slug: unknown) {
+  const value = String(slug || '').trim().toLowerCase();
+  return Boolean(value && value !== 'undefined' && value !== 'null');
 }
 
 export default function Navbar() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const cartQuery = useCartQuery();
+  const wishlistQuery = useWishlistQuery();
 
   // drawers/dialogs
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -53,7 +54,11 @@ export default function Navbar() {
         setCatsLoading(true);
         const data = await listCategories();
         if (cancelled) return;
-        setCats((data || []).map((c: any) => ({ name: String(c.name), slug: String(c.slug) })));
+        setCats(
+          (data || [])
+            .filter((c: any) => validSlug(c.slug))
+            .map((c: any) => ({ name: String(c.name), slug: String(c.slug).trim() }))
+        );
       } catch {
         if (!cancelled) setCats([]);
       } finally {
@@ -72,7 +77,11 @@ export default function Navbar() {
     if (q) router.push(`/search?q=${encodeURIComponent(q)}`);
   };
 
-  const chatHref = waLink('Hello, I want to ask about your products.');
+  const cartCount =
+    cartQuery.data?.items?.reduce((sum: number, item: { quantity?: number | string }) => {
+      return sum + Number(item.quantity || 0);
+    }, 0) || 0;
+  const wishlistCount = wishlistQuery.data?.length || 0;
 
   return (
     <>
@@ -117,7 +126,7 @@ export default function Navbar() {
                   ) : cats.length > 0 ? (
                     cats.map((category) => (
                       <DropdownMenuItem key={category.slug} asChild>
-                        <Link href={`/category/${category.slug}`}>{category.name}</Link>
+                        <a href={`/category/${category.slug}`}>{category.name}</a>
                       </DropdownMenuItem>
                     ))
                   ) : (
@@ -152,30 +161,41 @@ export default function Navbar() {
             {/* Right actions */}
             <div className="shrink-0">
               <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
-                {/* Chat with us (WhatsApp) */}
-                <a
-                  href={chatHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hidden sm:inline-flex"
-                  aria-label="Chat with us on WhatsApp"
-                >
-                  <Button className="h-8 px-3 text-xs md:h-9 md:px-4 md:text-sm bg-green-600 text-white hover:bg-green-700">
-                    <MessageCircle className="mr-2 h-4 w-4" />
-                    Chat with Us
-                  </Button>
-                </a>
+                <Link href="/wishlist" className="relative rounded-full p-1.5 transition-colors hover:bg-gray-100 md:p-2" aria-label="Wishlist">
+                  <Heart className="h-5 w-5 md:h-6 md:w-6" />
+                  {wishlistCount > 0 ? (
+                    <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {wishlistCount}
+                    </span>
+                  ) : null}
+                </Link>
 
-                {/* Chat icon (mobile) */}
-                <a
-                  href={chatHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="sm:hidden rounded-full p-1.5 transition-colors hover:bg-gray-100 md:p-2"
-                  aria-label="Chat with us on WhatsApp"
+                <Link href="/cart" className="relative rounded-full p-1.5 transition-colors hover:bg-gray-100 md:p-2" aria-label="Cart">
+                  <ShoppingCart className="h-5 w-5 md:h-6 md:w-6" />
+                  {cartCount > 0 ? (
+                    <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-yellow-500 px-1 text-[10px] font-bold text-black">
+                      {cartCount}
+                    </span>
+                  ) : null}
+                </Link>
+
+                <Link
+                  href={user ? '/profile' : '/signin'}
+                  className="relative grid h-8 w-8 place-items-center overflow-hidden rounded-full transition-colors hover:bg-gray-100 md:h-10 md:w-10"
+                  aria-label={user ? 'Profile' : 'Sign in'}
                 >
-                  <MessageCircle className="h-5 w-5 md:h-6 md:w-6" />
-                </a>
+                  {user?.photoURL ? (
+                    <Image
+                      src={user.photoURL}
+                      alt={user.displayName || user.email || 'Profile'}
+                      fill
+                      sizes="40px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <User className="h-5 w-5 md:h-6 md:w-6" />
+                  )}
+                </Link>
 
                 {/* Menu drawer trigger */}
                 <button

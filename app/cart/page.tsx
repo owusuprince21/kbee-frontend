@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatGHS } from '@/lib/currencyformat';
 import { http } from '@/lib/api/http';
+import { commerceKeys } from '@/lib/api/commerce';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 
@@ -60,6 +62,8 @@ type ServerProduct = {
   discount_price?: string | number | null;
   images?: { image?: string | null }[];
   main_image_url?: string | null;
+  stock_quantity?: number | string;
+  is_in_stock?: boolean;
 };
 type ServerCartItem = {
   id: number;
@@ -74,24 +78,47 @@ type ServerCart = {
   subtotal?: string | number;
 };
 
+const emptyCart: ServerCart = { id: 0, items: [], subtotal: '0.00' };
+
 const toNum = (n: unknown) => {
   const v = Number(n);
   return Number.isFinite(v) ? v : 0;
 };
 
+function stockLimit(product?: ServerProduct) {
+  if (product?.stock_quantity === undefined || product?.stock_quantity === null || product?.stock_quantity === '') {
+    return null;
+  }
+  const stock = Number(product?.stock_quantity ?? 0);
+  if (product?.is_in_stock === false) return 0;
+  return Number.isFinite(stock) && stock > 0 ? Math.floor(stock) : 0;
+}
+
 export default function CartPage() {
   const { user } = useAuthStore();
   const localCart = useCartStore();
+  const queryClient = useQueryClient();
 
   const [cart, setCart] = useState<ServerCart | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
   const headers = useMemo(() => buildFirebaseHeaders(user), [user]);
+  const publishCart = (nextCart: ServerCart) => {
+    setCart(nextCart);
+    queryClient.setQueryData(commerceKeys.cart, nextCart);
+    window.dispatchEvent(new Event(nextCart.items?.length ? 'cart:updated' : 'cart:cleared'));
+  };
 
   const fetchServerCart = async () => {
-    const data = await http<ServerCart>('/api/cart/', { headers });
-    setCart(data);
+    try {
+      const data = await http<ServerCart>('/api/cart/', { headers });
+      publishCart(data);
+      return data;
+    } catch {
+      publishCart(emptyCart);
+      return emptyCart;
+    }
   };
 
   const migrateLocalToServer = async () => {
@@ -127,6 +154,7 @@ export default function CartPage() {
       await fetchServerCart();
       localCart.clearCart();
       try { localStorage.removeItem('cart-storage'); } catch {}
+      window.dispatchEvent(new Event('cart:updated'));
       toast.success('Cart synced to your account.');
     } catch {
       toast.error('Could not sync your cart. Still showing local items.');
@@ -136,13 +164,14 @@ export default function CartPage() {
   };
 
   useEffect(() => {
-    if (!user) return;
     (async () => {
       setLoading(true);
       try {
         await fetchServerCart();
-        await migrateLocalToServer();
+        if (user) await migrateLocalToServer();
         await fetchServerCart();
+      } catch {
+        publishCart(emptyCart);
       } finally {
         setLoading(false);
       }
@@ -158,38 +187,42 @@ export default function CartPage() {
     );
   }, [cart]);
 
-  const changeQty = async (itemId: number, qty: number) => {
+  const changeQty = async (itemId: number, qty: number, maxQty?: number | null) => {
     if (qty < 1) qty = 1;
-    const data = await http<ServerCart>(`/api/cart/update_item/${itemId}/`, {
-      method: 'PATCH',
-      headers,
-      body: { quantity: qty },
-    });
-    setCart(data);
+    if (maxQty != null && maxQty > 0) qty = Math.min(qty, maxQty);
+    try {
+      const data = await http<ServerCart>(`/api/cart/update_item/${itemId}/`, {
+        method: 'PATCH',
+        headers,
+        body: { quantity: qty },
+      });
+      publishCart(data);
+    } catch {
+      toast.error('Could not update cart.');
+    }
   };
 
   const removeItem = async (itemId: number) => {
-    const data = await http<ServerCart>(`/api/cart/remove_item/${itemId}/`, {
-      method: 'DELETE',
-      headers,
-    });
-    setCart(data);
+    try {
+      const data = await http<ServerCart>(`/api/cart/remove_item/${itemId}/`, {
+        method: 'DELETE',
+        headers,
+      });
+      publishCart(data);
+    } catch {
+      toast.error('Could not remove item.');
+    }
   };
 
   const clearServerCart = async () => {
-    await http<{ detail: string }>('/api/cart/clear/', { method: 'POST', headers });
-    await fetchServerCart();
+    try {
+      await http<{ detail: string }>('/api/cart/clear/', { method: 'POST', headers });
+      publishCart(emptyCart);
+      await fetchServerCart();
+    } catch {
+      toast.error('Could not clear cart.');
+    }
   };
-
-  if (!user) {
-    return (
-      <div className="mx-auto max-w-screen-xl w-full px-4 py-12 sm:py-20 text-center">
-        <h1 className="mb-6 text-2xl font-bold sm:text-4xl">Your Cart</h1>
-        <p className="mb-8 text-gray-600">Please sign in to use your cart.</p>
-        <Link href="/"><Button>Go Home</Button></Link>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
@@ -242,15 +275,22 @@ export default function CartPage() {
               ? discount
               : price || toNum(item.unit_price);
           const lineTotal = perUnit * Math.max(1, toNum(item.quantity));
+          const maxQty = stockLimit(p);
+          const currentQty = Math.max(1, toNum(item.quantity));
+          const atMaxStock = maxQty != null && maxQty > 0 && currentQty >= maxQty;
+          const outOfStock = maxQty === 0 || p?.is_in_stock === false;
 
-          const dec = () => changeQty(item.id, Math.max(1, toNum(item.quantity) - 1));
-          const inc = () => changeQty(item.id, toNum(item.quantity) + 1);
+          const dec = () => changeQty(item.id, Math.max(1, currentQty - 1), maxQty);
+          const inc = () => {
+            if (atMaxStock || outOfStock) return;
+            changeQty(item.id, currentQty + 1, maxQty);
+          };
           const onType = (e: React.ChangeEvent<HTMLInputElement>) => {
             const n = Math.max(1, Math.floor(Number(e.target.value)));
-            if (Number.isFinite(n)) changeQty(item.id, n);
+            if (Number.isFinite(n)) changeQty(item.id, n, maxQty);
           };
           const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-            if (!e.target.value || Number(e.target.value) < 1) changeQty(item.id, 1);
+            if (!e.target.value || Number(e.target.value) < 1) changeQty(item.id, 1, maxQty);
           };
 
           const img = productImageSrc(p);
@@ -328,9 +368,10 @@ export default function CartPage() {
                       type="number"
                       inputMode="numeric"
                       min={1}
+                      max={maxQty || undefined}
                       step={1}
                       className="w-14 sm:w-20 text-center"
-                      value={toNum(item.quantity)}
+                      value={currentQty}
                       onChange={onType}
                       onBlur={onBlur}
                       aria-label="Quantity"
@@ -340,12 +381,20 @@ export default function CartPage() {
                       size="icon"
                       variant="outline"
                       onClick={inc}
+                      disabled={atMaxStock || outOfStock}
+                      title={atMaxStock ? `Only ${maxQty} in stock` : undefined}
                       aria-label="Increase quantity"
                       className="h-8 w-8 sm:h-9 sm:w-9"
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
+
+                  {maxQty != null && maxQty > 0 && (
+                    <span className="text-xs font-medium text-gray-500">
+                      {currentQty >= maxQty ? `Max stock reached (${maxQty})` : `${maxQty} in stock`}
+                    </span>
+                  )}
 
                   {/* Line total + delete */}
                   <div className="ml-auto flex items-center gap-2">

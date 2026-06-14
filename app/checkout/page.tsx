@@ -1,8 +1,8 @@
 // app/checkout/page.tsx
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { http, ApiError, type Paginated } from '@/lib/api/http';
 import { useAuthStore } from '@/store/authStore';
+import {
+  getShippingQuote,
+  listShippingRegions,
+  listShippingTowns,
+  type ShippingQuote,
+  type ShippingRegion,
+  type ShippingTown,
+} from '@/lib/api/shipping';
 
 /* ---------- identity helpers ---------- */
 type AnyRec = Record<string, any>;
@@ -59,9 +67,20 @@ type CartDTO = { items: CartItemDTO[]; subtotal?: number };
 type InitResp = {
   tx_ref: string;
   payment_id: number;
-  channel?: 'mobile_money' | 'card';
+  channel?: 'mobile_money' | 'card' | 'checkout';
+  channels?: string[];
   next_url?: string | null;
   gateway: any;
+};
+
+type VerifyResp = {
+  detail?: string;
+  order_id?: number | string | null;
+  order_code?: string | null;
+  customer_is_guest?: boolean;
+  order_status?: string;
+  payment_status?: string;
+  receipt_url?: string | null;
 };
 
 /* ---------- utils ---------- */
@@ -117,12 +136,10 @@ function readLocalCart(): CartDTO | null {
   return null;
 }
 
-/* ---------- constants ---------- */
-const SHIPPING_FEE_GHS = 50;
-
 /* ---------- page ---------- */
 export default function CheckoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const me = useMemo(() => extractUserIdentity(user), [user]);
 
@@ -130,17 +147,35 @@ export default function CheckoutPage() {
   const [cart, setCart] = useState<CartDTO | null>(null);
   const [loadingCart, setLoadingCart] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [regions, setRegions] = useState<ShippingRegion[]>([]);
+  const [towns, setTowns] = useState<ShippingTown[]>([]);
+  const [selectedRegion, setSelectedRegion] = useState('');
+  const [shippingTownId, setShippingTownId] = useState<number | ''>('');
+  const [shippingQuote, setShippingQuote] = useState<ShippingQuote | null>(null);
 
   const [addressId, setAddressId] = useState<number | ''>('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestAddress, setGuestAddress] = useState({
+    full_name: '',
+    line1: '',
+    line2: '',
+    city: '',
+    region: '',
+    postal_code: '',
+    country: 'Ghana',
+  });
   const [note, setNote] = useState('');
   const [phone, setPhone] = useState('');
-  const [network, setNetwork] = useState<'mtn' | 'airteltigo' | 'telecel' | ''>('');
 
   const [payMethod, setPayMethod] = useState<'momo' | 'card'>('momo');
   const [cardEmail, setCardEmail] = useState<string>('');
 
   const [initializing, setInitializing] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [paymentLocked, setPaymentLocked] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState('Confirming your payment...');
+  const autoVerifyRef = useRef<string | null>(null);
 
   // Keep refs SEPARATE to avoid mixing MoMo <-> Card
   const [momoRef, setMomoRef] = useState<string | null>(null);
@@ -150,13 +185,33 @@ export default function CheckoutPage() {
   const [momoNextUrl, setMomoNextUrl] = useState<string | null>(null);
   const [cardAuthUrl, setCardAuthUrl] = useState<string | null>(null);
 
-  // redirect if not logged in
   useEffect(() => {
-    if (!user) {
-      router.replace('/');
-      router.refresh();
+    if (typeof window === 'undefined') return;
+    const callbackRef =
+      searchParams.get('reference') ||
+      searchParams.get('trxref') ||
+      searchParams.get('tx_ref') ||
+      '';
+    const savedCardRef = window.localStorage.getItem('kbee_card_tx_ref');
+    const savedMomoRef = window.localStorage.getItem('kbee_momo_tx_ref');
+    if (callbackRef) setCardRef(callbackRef);
+    else if (savedCardRef) setCardRef(savedCardRef);
+    if (savedMomoRef) setMomoRef(savedMomoRef);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!user) return;
+    const firebaseName = me.name || '';
+    const firebaseEmail = me.email || '';
+    if (firebaseName) {
+      setGuestAddress((addr) => ({
+        ...addr,
+        full_name: addr.full_name || firebaseName,
+      }));
     }
-  }, [user, router]);
+    if (firebaseEmail) setGuestEmail((current) => current || firebaseEmail);
+    setCardEmail((current) => current || firebaseEmail);
+  }, [user, me.name, me.email]);
 
   // helper: refetch server cart
   const fetchServerCart = async (headers: HeadersInit) => {
@@ -193,7 +248,6 @@ export default function CheckoutPage() {
 
   // load addresses + cart (use API, fall back to localStorage; if server empty and local exists → sync up)
   useEffect(() => {
-    if (!user) return;
     const headers = buildFirebaseHeaders(user);
 
     (async () => {
@@ -209,6 +263,16 @@ export default function CheckoutPage() {
         if (def) {
           setAddressId(def.id);
           setPhone(def.phone || '');
+          setGuestAddress((addr) => ({
+            ...addr,
+            full_name: addr.full_name || def.full_name || me.name || '',
+            line1: addr.line1 || def.line1 || '',
+            line2: addr.line2 || def.line2 || '',
+            city: addr.city || def.city || '',
+            region: addr.region || def.region || '',
+            postal_code: addr.postal_code || def.postal_code || '',
+            country: addr.country || def.country || 'Ghana',
+          }));
         }
       } catch {
         setAddresses([]);
@@ -239,7 +303,7 @@ export default function CheckoutPage() {
         setLoadingCart(false);
       }
     })();
-  }, [user]);
+  }, [user, me.name]);
 
   // subtotal prefers backend value if present; else sum items
   const subtotal = useMemo(() => {
@@ -251,8 +315,58 @@ export default function CheckoutPage() {
     );
   }, [cart]);
 
-  const shipping = SHIPPING_FEE_GHS; // fixed
-  const grandTotal = subtotal + shipping;
+  useEffect(() => {
+    let alive = true;
+    listShippingRegions().then((data) => {
+      if (alive) setRegions(data);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    setTowns([]);
+    setShippingTownId('');
+    setShippingQuote(null);
+    if (!selectedRegion) return;
+    listShippingTowns(selectedRegion).then((data) => {
+      if (alive) setTowns(data);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [selectedRegion]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!shippingTownId) {
+      setShippingQuote(null);
+      return;
+    }
+    getShippingQuote(shippingTownId, subtotal)
+      .then((quote) => {
+        if (!alive) return;
+        setShippingQuote(quote);
+        setGuestAddress((addr) => ({
+          ...addr,
+          region: quote.town.region.name,
+          city: quote.town.name,
+        }));
+      })
+      .catch(() => {
+        if (alive) setShippingQuote(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [shippingTownId, subtotal]);
+
+  const shipping = toNum(shippingQuote?.shipping_fee);
+  const paymentCharge = toNum(shippingQuote?.payment_charge);
+  const chargePercent = toNum(shippingQuote?.charge_percent);
+  const grandTotal = subtotal + shipping + paymentCharge;
 
   // auto-fill phone when address changes (if blank)
   useEffect(() => {
@@ -264,16 +378,89 @@ export default function CheckoutPage() {
   /* ---------- server helpers ---------- */
   const buildHeaders = () => buildFirebaseHeaders(user);
 
+  const ensureCheckoutAddress = async () => {
+    if (!shippingTownId) throw new Error('Choose your delivery region and town.');
+    if (!guestAddress.full_name.trim()) throw new Error('Enter your full name.');
+    if (!phone.trim()) throw new Error('Enter your phone number.');
+    if (!addressId && !guestAddress.line1.trim()) throw new Error('Enter your delivery address.');
+    if (!guestEmail.trim() && !me.email) throw new Error('Enter your email for the receipt.');
+
+    const headers = buildHeaders();
+    if (guestEmail.trim() || me.email || guestAddress.full_name.trim() || phone.trim()) {
+      await http('/api/customers/me/', {
+        method: 'PATCH',
+        headers,
+        body: {
+          email: guestEmail.trim() || me.email || '',
+          full_name: guestAddress.full_name.trim(),
+          phone: phone.trim(),
+        },
+      }).catch(() => null);
+    }
+
+    if (addressId) {
+      await http(`/api/addresses/${addressId}/`, {
+        method: 'PATCH',
+        headers,
+        body: {
+          full_name: guestAddress.full_name.trim(),
+          phone: phone.trim(),
+        },
+      }).catch(() => null);
+      return Number(addressId);
+    }
+
+    const created = await http<Address>('/api/addresses/', {
+      method: 'POST',
+      headers,
+      body: {
+        ...guestAddress,
+        full_name: guestAddress.full_name.trim(),
+        line1: guestAddress.line1.trim(),
+        phone: phone.trim(),
+        is_default: true,
+      },
+    });
+    setAddresses((prev) => [created, ...prev]);
+    setAddressId(created.id);
+    return created.id;
+  };
+
   const clearLocalCart = () => {
     try {
-      const keys = ['cart', 'cartItems', 'kbee-cart'];
+      const keys = ['cart', 'cartItems', 'kbee-cart', 'cart-storage'];
       keys.forEach(k => localStorage.removeItem(k));
+      window.dispatchEvent(new Event('cart:cleared'));
+      window.dispatchEvent(new Event('cart:updated'));
     } catch {}
     setCart({ items: [], subtotal: 0 });
   };
 
+  const finishVerifiedPayment = (verification?: VerifyResp | null) => {
+    const orderCode = verification?.order_code || '';
+    clearLocalCart();
+    try {
+      localStorage.removeItem('kbee_momo_tx_ref');
+      localStorage.removeItem('kbee_card_tx_ref');
+      if (orderCode) localStorage.setItem('kbee_last_order_code', orderCode);
+      if (verification?.receipt_url) localStorage.setItem('kbee_last_receipt_url', verification.receipt_url);
+    } catch {}
+
+    if (verification?.customer_is_guest === false && user) {
+      toast.success('Payment verified. Your order is ready.');
+      router.replace('/orders');
+    } else {
+      toast.success('Order placed successfully.');
+      const params = new URLSearchParams();
+      if (orderCode) params.set('code', orderCode);
+      if (verification?.receipt_url) params.set('receipt', verification.receipt_url);
+      router.replace(`/checkout/success${params.toString() ? `?${params.toString()}` : ''}`);
+    }
+    router.refresh();
+  };
+
   // Poll /verify/:tx_ref until success (or timeout)
-  const pollVerify = async (ref: string) => {
+  const pollVerify = async (ref: string): Promise<VerifyResp | null> => {
     setVerifying(true);
     const headers = buildHeaders();
     const start = Date.now();
@@ -283,14 +470,14 @@ export default function CheckoutPage() {
     while (Date.now() - start < timeoutMs) {
       try {
         // 200 on success; 202/400 are “not yet”
-        const v = await http<{ order_status?: string; payment_status?: string; detail?: string }>(
+        const v = await http<VerifyResp>(
           `/api/payments/verify/${ref}/`,
           { headers }
         );
         const ps = (v.payment_status || '').toLowerCase();
         if (ps === 'successful' || ps === 'success') {
           setVerifying(false);
-          return true;
+          return v;
         }
       } catch {
         // treat as pending and retry
@@ -298,45 +485,70 @@ export default function CheckoutPage() {
       await delay(5000);
     }
     setVerifying(false);
-    return false;
+    return null;
   };
 
+  const verifyAndGoToOrders = async (ref: string, pendingMessage: string, failureMessage: string) => {
+    autoVerifyRef.current = ref;
+    setPaymentMessage(pendingMessage);
+    setProcessingPayment(true);
+    const verification = await pollVerify(ref);
+    if (verification) {
+      finishVerifiedPayment(verification);
+      return;
+    }
+    autoVerifyRef.current = null;
+    setProcessingPayment(false);
+    toast.error(failureMessage);
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const callbackRef =
+      searchParams.get('reference') ||
+      searchParams.get('trxref') ||
+      searchParams.get('tx_ref') ||
+      '';
+    if (!callbackRef || autoVerifyRef.current === callbackRef) return;
+
+    const params = new URLSearchParams();
+    params.set('reference', callbackRef);
+    router.replace(`/checkout/success?${params.toString()}`);
+  }, [searchParams, router]);
+
   /* ---------- actions ---------- */
-  const handlePayMoMo = async () => {
-    // Pre-open a blank tab to avoid popup blocking (only used if next_url exists)
-    let popup: Window | null = null;
+  const handlePaystackCheckout = async (preferredChannel: 'mobile_money' | 'card') => {
     try {
-      popup = window.open('about:blank', '_blank');
-      if (popup) {
-        popup.opener = null;
-        popup.document.write('<p style="font:14px sans-serif;margin:16px">Opening mobile money page…</p>');
-      }
-    } catch {}
-
-    try {
+      if (paymentLocked) return;
       if (!cart?.items?.length) throw new Error('Your cart is empty.');
-      if (!addressId) throw new Error('Please choose a delivery address.');
-      if (!network) throw new Error('Choose a mobile network (MTN/AirtelTigo/Telecel).');
-      if (!phone?.trim()) throw new Error('Enter your MoMo phone number.');
+      const checkoutAddressId = await ensureCheckoutAddress();
 
+      setPaymentLocked(true);
       setInitializing(true);
       const headers = buildHeaders();
-      const init = await http<InitResp>('/api/payments/initialize_from_cart/', {
+      const init = await http<InitResp>('/api/payments/initialize_checkout_from_cart/', {
         method: 'POST',
         headers,
         body: {
-          address_id: addressId,
+          address_id: checkoutAddressId,
           note: note || '',
-          shipping_fee: SHIPPING_FEE_GHS,
+          shipping_town_id: shippingTownId,
           currency: 'GHS',
-          network, // 'mtn' | 'airteltigo' | 'telecel'
-          phone_number: phone,
+          preferred_channel: preferredChannel,
+          email: (cardEmail || me.email || guestEmail || '').trim() || undefined,
         },
       });
       setInitializing(false);
 
       const ref = init.tx_ref;
-      setMomoRef(ref);
+      if (preferredChannel === 'mobile_money') {
+        setMomoRef(ref);
+      } else {
+        setCardRef(ref);
+      }
+      try {
+        localStorage.setItem(preferredChannel === 'mobile_money' ? 'kbee_momo_tx_ref' : 'kbee_card_tx_ref', ref);
+      } catch {}
 
       const nextUrl =
         init?.next_url ||
@@ -347,97 +559,24 @@ export default function CheckoutPage() {
         init?.gateway?.data?.url ||
         null;
 
-      setMomoNextUrl(nextUrl);
-
-      if (nextUrl) {
-        if (popup) {
-          popup.location.href = String(nextUrl);
-          toast.message('We opened a MoMo page in a new tab. Complete it, then click "Check status".');
-        } else {
-          toast.message('Your browser blocked the pop-up. Click "Open MoMo Page" below.');
-        }
+      if (preferredChannel === 'mobile_money') {
+        setMomoNextUrl(nextUrl);
       } else {
-        if (popup) try { popup.close(); } catch {}
-        toast.message('Payment initiated. Approve the MoMo prompt on your phone, then click "Check status".');
+        setCardAuthUrl(nextUrl);
       }
-    } catch (err) {
-      setInitializing(false);
-      setVerifying(false);
-      if (popup) try { popup.close(); } catch {}
-      if (err instanceof ApiError) {
-        const d: any = err.data || {};
-        const fieldErr =
-          d.detail ||
-          d.address_id?.[0] ||
-          d.network?.[0] ||
-          d.phone_number?.[0] ||
-          d.shipping_fee?.[0] ||
-          d.currency?.[0] ||
-          d.non_field_errors?.[0];
-        toast.error(fieldErr || 'Checkout failed.');
-      } else {
-        toast.error((err as Error)?.message || 'Checkout failed.');
-      }
-    }
-  };
 
-  const handlePayCard = async () => {
-    // Pre-open a blank tab to avoid popup blocking
-    let popup: Window | null = null;
-    try {
-      popup = window.open('about:blank', '_blank');
-      if (popup) {
-        popup.opener = null;
-        popup.document.write('<p style="font:14px sans-serif;margin:16px">Opening secure card checkout…</p>');
-      }
-    } catch {}
-
-    try {
-      if (!cart?.items?.length) throw new Error('Your cart is empty.');
-      if (!addressId) throw new Error('Please choose a delivery address.');
-
-      setInitializing(true);
-      const headers = buildHeaders();
-      const init = await http<InitResp>('/api/payments/initialize_card_from_cart/', {
-        method: 'POST',
-        headers,
-        body: {
-          address_id: addressId,
-          note: note || '',
-          shipping_fee: SHIPPING_FEE_GHS,
-          currency: 'GHS',
-          email: (cardEmail || me.email || '').trim() || undefined,
-        },
-      });
-      setInitializing(false);
-
-      const ref = init.tx_ref;
-      setCardRef(ref);
-
-      const authUrl =
-        init?.next_url ||
-        init?.gateway?.data?.authorization_url ||
-        init?.gateway?.data?.authorizationURL ||
-        init?.gateway?.authorization_url ||
-        null;
-
-      setCardAuthUrl(authUrl);
-
-      if (!authUrl) {
-        if (popup) try { popup.close(); } catch {}
-        toast.error('Could not start card payment.');
+      if (!nextUrl) {
+        toast.error('Could not open Paystack checkout.');
+        setPaymentLocked(false);
         return;
       }
 
-      if (popup) {
-        popup.location.href = String(authUrl);
-        toast.message('Opened secure card payment in a new tab. Complete it, then click "Check status".');
-      } else {
-        toast.message('Your browser blocked the pop-up. Click "Open Card Checkout" below.');
-      }
+      window.location.href = String(nextUrl);
     } catch (err) {
       setInitializing(false);
-      if (popup) try { popup.close(); } catch {}
+      setVerifying(false);
+      setProcessingPayment(false);
+      setPaymentLocked(false);
       if (err instanceof ApiError) {
         const d: any = err.data || {};
         const fieldErr =
@@ -446,17 +585,52 @@ export default function CheckoutPage() {
           d.shipping_fee?.[0] ||
           d.currency?.[0] ||
           d.non_field_errors?.[0];
-        toast.error(fieldErr || 'Could not start card payment.');
+        toast.error(fieldErr || 'Could not start Paystack checkout.');
       } else {
-        toast.error((err as Error)?.message || 'Could not start card payment.');
+        toast.error((err as Error)?.message || 'Could not start Paystack checkout.');
       }
     }
   };
 
-  if (!user) return null;
+  const handlePayMoMo = () => handlePaystackCheckout('mobile_money');
+
+  const handlePayCard = async () => {
+    await handlePaystackCheckout('card');
+  };
+
+  const switchPaymentMethod = (method: 'momo' | 'card') => {
+    if (paymentLocked) return;
+    setPayMethod(method);
+    setProcessingPayment(false);
+    setInitializing(false);
+    setVerifying(false);
+    setMomoNextUrl(null);
+    setCardAuthUrl(null);
+    setMomoRef(null);
+    setCardRef(null);
+  };
 
   const momoBtnDisabled =
-    initializing || verifying || !cart || !cart.items?.length || !addressId || !network || !phone?.trim();
+    paymentLocked || initializing || verifying || !cart || !cart.items?.length || !shippingTownId;
+
+  if (processingPayment) {
+    return (
+      <main className="min-h-[70vh] bg-white px-4 py-16">
+        <section className="mx-auto flex max-w-md flex-col items-center text-center">
+          <div className="relative mb-5 h-16 w-16">
+            <div className="absolute inset-0 rounded-full border-4 border-yellow-400/25" />
+            <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-yellow-500" />
+            <div className="absolute inset-4 rounded-full bg-yellow-500" />
+          </div>
+          <h1 className="text-2xl font-semibold text-gray-900">Processing payment</h1>
+          <p className="mt-3 text-sm leading-6 text-gray-600">{paymentMessage}</p>
+          <p className="mt-2 text-xs text-gray-500">
+            Please keep this page open. You will be redirected to your orders once payment is confirmed.
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="container mx-auto px-4 py-10">
@@ -497,7 +671,11 @@ export default function CheckoutPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Shipping Fee</span>
-                <span className="font-medium">GHS {SHIPPING_FEE_GHS.toFixed(2)}</span>
+                <span className="font-medium">GHS {shipping.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Charge </span>
+                <span className="font-medium">GHS {paymentCharge.toFixed(2)}</span>
               </div>
               <div className="mt-2 flex justify-between border-t pt-2 text-base">
                 <span className="font-semibold">Total</span>
@@ -513,14 +691,33 @@ export default function CheckoutPage() {
         <div className="rounded border bg-white p-4">
           <h2 className="mb-3 font-semibold">Delivery address</h2>
 
-          {addresses.length === 0 ? (
-            <p className="text-sm text-gray-600">
-              No saved addresses yet. Add one in{' '}
-              <Link href="/profile" className="text-indigo-600 underline">
-                your profile
-              </Link>
-              .
-            </p>
+          {!user ? (
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="guestEmail">Email for receipt</Label>
+                <Input id="guestEmail" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="guestName">Full name</Label>
+                <Input id="guestName" value={guestAddress.full_name} onChange={(e) => setGuestAddress((a) => ({ ...a, full_name: e.target.value }))} />
+              </div>
+              <div>
+                <Label htmlFor="guestLine1">Address</Label>
+                <Input id="guestLine1" value={guestAddress.line1} onChange={(e) => setGuestAddress((a) => ({ ...a, line1: e.target.value }))} />
+              </div>
+            </div>
+          ) : addresses.length === 0 ? (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">Add a delivery address for this order.</p>
+              <div>
+                <Label htmlFor="guestName">Full name</Label>
+                <Input id="guestName" value={guestAddress.full_name} onChange={(e) => setGuestAddress((a) => ({ ...a, full_name: e.target.value }))} />
+              </div>
+              <div>
+                <Label htmlFor="guestLine1">Address</Label>
+                <Input id="guestLine1" value={guestAddress.line1} onChange={(e) => setGuestAddress((a) => ({ ...a, line1: e.target.value }))} />
+              </div>
+            </div>
           ) : (
             <>
               <Label htmlFor="addr">Choose address</Label>
@@ -544,6 +741,82 @@ export default function CheckoutPage() {
             </>
           )}
 
+          {user && addresses.length > 0 ? (
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="customerName">Full name</Label>
+                <Input
+                  id="customerName"
+                  value={guestAddress.full_name}
+                  onChange={(e) => setGuestAddress((a) => ({ ...a, full_name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="customerPhone">Phone number</Label>
+                <Input
+                  id="customerPhone"
+                  placeholder="Phone number for delivery calls"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {(!user || addresses.length === 0) ? (
+            <div className="mt-4">
+              <Label htmlFor="customerPhone">Phone number</Label>
+              <Input
+                id="customerPhone"
+                placeholder="Phone number for delivery calls"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+          ) : null}
+
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="shippingRegion">Delivery region</Label>
+              <select
+                id="shippingRegion"
+                className="mt-1 w-full rounded border px-3 py-2"
+                value={selectedRegion}
+                onChange={(e) => setSelectedRegion(e.target.value)}
+              >
+                <option value="">Select region…</option>
+                {regions.map((region) => (
+                  <option key={region.id} value={region.slug}>
+                    {region.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <Label htmlFor="shippingTown">Delivery town</Label>
+              <select
+                id="shippingTown"
+                className="mt-1 w-full rounded border px-3 py-2"
+                value={shippingTownId || ''}
+                onChange={(e) => setShippingTownId(e.target.value ? Number(e.target.value) : '')}
+                disabled={!selectedRegion}
+              >
+                <option value="">Select town…</option>
+                {towns.map((town) => (
+                  <option key={town.id} value={town.id}>
+                    {town.name} - GHS {Number(town.fee).toFixed(2)}
+                  </option>
+                ))}
+              </select>
+              {selectedRegion && towns.length === 0 ? (
+                <p className="mt-1 text-xs text-red-600">
+                  No towns have been added for this region yet.
+                </p>
+              ) : null}
+            </div>
+          </div>
+
           <div className="mt-4">
             <Label htmlFor="note">Order notes (optional)</Label>
             <Textarea id="note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
@@ -554,7 +827,7 @@ export default function CheckoutPage() {
             <Label htmlFor="amountToPay">Amount to Pay (GHS)</Label>
             <Input id="amountToPay" value={grandTotal.toFixed(2)} disabled />
             <p className="mt-1 text-xs text-gray-500">
-              Calculated as Subtotal + Shipping Fee (GHS {SHIPPING_FEE_GHS.toFixed(2)}).
+              Calculated as subtotal + shipping fee + charge.
             </p>
           </div>
         </div>
@@ -564,21 +837,25 @@ export default function CheckoutPage() {
           <h2 className="mb-3 font-semibold">Payment</h2>
 
           {/* Method Switcher */}
-          <div className="mb-4 grid grid-cols-2 gap-2">
+          <div className="mb-4 grid grid-cols-2 gap-2" role="tablist" aria-label="Payment method">
             <button
+              aria-selected={payMethod === 'momo'}
               className={`rounded-md border px-3 py-2 text-sm font-medium ${
                 payMethod === 'momo' ? 'border-yellow-500 bg-yellow-50 text-yellow-800' : 'border-gray-200 hover:bg-gray-50'
               }`}
-              onClick={() => setPayMethod('momo')}
+              onClick={() => switchPaymentMethod('momo')}
+              role="tab"
               type="button"
             >
               Mobile Money
             </button>
             <button
+              aria-selected={payMethod === 'card'}
               className={`rounded-md border px-3 py-2 text-sm font-medium ${
                 payMethod === 'card' ? 'border-yellow-500 bg-yellow-50 text-yellow-800' : 'border-gray-200 hover:bg-gray-50'
               }`}
-              onClick={() => setPayMethod('card')}
+              onClick={() => switchPaymentMethod('card')}
+              role="tab"
               type="button"
             >
               Credit / Debit Card
@@ -587,29 +864,11 @@ export default function CheckoutPage() {
 
           {payMethod === 'momo' ? (
             <>
-              <div className="mb-3">
-                <Label htmlFor="net">Network</Label>
-                <select
-                  id="net"
-                  className="mt-1 w-full rounded border px-3 py-2"
-                  value={network}
-                  onChange={(e) => setNetwork(e.target.value as any)}
-                >
-                  <option value="">Select…</option>
-                  <option value="mtn">MTN</option>
-                  <option value="airteltigo">AirtelTigo</option>
-                  <option value="telecel">Telecel (Vodafone)</option>
-                </select>
-              </div>
-
-              <div className="mb-3">
-                <Label htmlFor="ph">MoMo phone number</Label>
-                <Input
-                  id="ph"
-                  placeholder="+233… or 0…"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
+              <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="text-sm font-semibold text-gray-900">Mobile Money</div>
+                <p className="mt-1 text-sm text-gray-600">
+                  Proceed to Pay to choose your mobile money provider and enter your MoMo number securely.
+                </p>
               </div>
 
               <Button
@@ -617,49 +876,18 @@ export default function CheckoutPage() {
                 onClick={handlePayMoMo}
                 disabled={momoBtnDisabled}
               >
-                {initializing ? 'Starting payment…' : verifying ? 'Waiting for approval…' : 'Pay with Mobile Money'}
+                {initializing || paymentLocked ? 'Opening Payment...' : verifying ? 'Waiting for approval...' : 'Proceed to Pay'}
               </Button>
-
-              {/* Fallback open link when popup was blocked */}
-              {momoNextUrl ? (
-                <div className="mt-3 flex items-center gap-2">
-                  <Button asChild className="bg-yellow-500 text-black hover:bg-yellow-600">
-                    <a href={momoNextUrl} target="_blank" rel="noopener noreferrer">
-                      Open MoMo Page
-                    </a>
-                  </Button>
-                  {momoRef ? (
-                    <span className="text-xs text-gray-600">
-                      Ref: <code>{momoRef}</code>
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {momoRef ? (
-                <div className="mt-3 flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    className="border-yellow-500 text-yellow-800 hover:bg-yellow-50"
-                    onClick={async () => {
-                      const ok = await pollVerify(momoRef);
-                      if (ok) {
-                        clearLocalCart();
-                        toast.success('Payment verified ✅');
-                        router.replace('/orders');
-                        router.refresh();
-                      } else {
-                        toast.error('Still pending. Complete the MoMo flow and try again.');
-                      }
-                    }}
-                  >
-                    {verifying ? 'Checking…' : 'Check status'}
-                  </Button>
-                </div>
-              ) : null}
             </>
           ) : (
             <>
+              <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className="text-sm font-semibold text-gray-900">Credit / Debit Card</div>
+                <p className="mt-1 text-sm text-gray-600">
+                  Proceed to Pay to enter your card details securely.
+                </p>
+              </div>
+
               <div className="mb-3">
                 <Label htmlFor="cardEmail">Email for receipt</Label>
                 <Input
@@ -677,48 +905,10 @@ export default function CheckoutPage() {
               <Button
                 className="w-full bg-yellow-500 text-black hover:bg-yellow-600"
                 onClick={handlePayCard}
-                disabled={initializing || verifying || !cart || !cart.items?.length || !addressId}
+                disabled={paymentLocked || initializing || verifying || !cart || !cart.items?.length || !shippingTownId}
               >
-                {initializing ? 'Opening secure checkout…' : 'Pay with Card'}
+                {initializing || paymentLocked ? 'Opening secure checkout...' : 'Proceed to Pay'}
               </Button>
-
-              {/* Fallback open link when popup was blocked */}
-              {cardAuthUrl ? (
-                <div className="mt-3 flex items-center gap-2">
-                  <Button asChild className="bg-yellow-500 text-black hover:bg-yellow-600">
-                    <a href={cardAuthUrl} target="_blank" rel="noopener noreferrer">
-                      Open Card Checkout
-                    </a>
-                  </Button>
-                  {cardRef ? (
-                    <span className="text-xs text-gray-600">
-                      Ref: <code>{cardRef}</code>
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {cardRef ? (
-                <div className="mt-3 flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    className="border-yellow-500 text-yellow-800 hover:bg-yellow-50"
-                    onClick={async () => {
-                      const ok = await pollVerify(cardRef);
-                      if (ok) {
-                        clearLocalCart();
-                        toast.success('Payment verified ✅');
-                        router.replace('/orders');
-                        router.refresh();
-                      } else {
-                        toast.error('Still pending. Complete the card payment then try again.');
-                      }
-                    }}
-                  >
-                    {verifying ? 'Checking…' : 'Check status'}
-                  </Button>
-                </div>
-              ) : null}
             </>
           )}
         </div>

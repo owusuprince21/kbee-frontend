@@ -3,6 +3,13 @@
 import { http, buildQuery, type Paginated } from './http';
 import type { Product } from '@/lib/types';
 
+const emptyProducts: Paginated<Product> = {
+  count: 0,
+  next: null,
+  previous: null,
+  results: [],
+};
+
 export type ProductQuery = {
   search?: string;
   /** Accepts numeric id or slug; we’ll map to `category` or `category__slug`. */
@@ -22,11 +29,24 @@ function isNumericLike(val: unknown) {
   return typeof val === 'number' || (typeof val === 'string' && /^\d+$/.test(val));
 }
 
+function isBlankParam(val: unknown) {
+  if (val === undefined || val === null || val === '') return true;
+  if (typeof val === 'string') {
+    const normalized = val.trim().toLowerCase();
+    return normalized === '' || normalized === 'undefined' || normalized === 'null';
+  }
+  return false;
+}
+
 export async function listProducts(params?: ProductQuery) {
   const qp: Record<string, any> = { ...(params || {}) };
 
+  for (const key of Object.keys(qp)) {
+    if (isBlankParam(qp[key])) delete qp[key];
+  }
+
   // Category (FK) supports slug lookup
-  if (qp.category !== undefined) {
+  if (!isBlankParam(qp.category)) {
     if (isNumericLike(qp.category)) {
       qp.category = typeof qp.category === 'number' ? qp.category : Number(qp.category);
     } else {
@@ -36,7 +56,7 @@ export async function listProducts(params?: ProductQuery) {
   }
 
   // Brand is a CharField → filter on `brand` directly
-  if (qp.brand !== undefined) {
+  if (!isBlankParam(qp.brand)) {
     if (isNumericLike(qp.brand)) {
       qp.brand = typeof qp.brand === 'number' ? qp.brand : Number(qp.brand);
     } else {
@@ -46,11 +66,14 @@ export async function listProducts(params?: ProductQuery) {
 
   // Booleans as strings DRF filter understands
   ['is_featured', 'is_new_arrival', 'is_best_seller'].forEach((k) => {
-    if (qp[k] !== undefined) qp[k] = String(Boolean(qp[k]));
+    if (!isBlankParam(qp[k])) qp[k] = String(Boolean(qp[k]));
   });
 
-  // Base URL in http.ts may already end with /api → use /products/* here
-  return http<Paginated<Product>>(`/products/${buildQuery(qp)}`);
+  try {
+    return await http<Paginated<Product>>(`/products/${buildQuery(qp)}`);
+  } catch {
+    return emptyProducts;
+  }
 }
 
 export async function getProduct(idOrSlug: number | string) {

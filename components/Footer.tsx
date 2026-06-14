@@ -1,8 +1,34 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin } from 'lucide-react';
 import { FaXTwitter } from 'react-icons/fa6';
+import { listCategories, type Category } from '@/lib/api/categories';
+
+function labelFromCategory(category: Category) {
+  const value = category.name || category.slug;
+  return String(value)
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
 
 export default function Footer() {
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const data = await listCategories();
+      if (!cancelled) setCategories(data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <footer className="bg-gray-900 text-white">
       <div className="container mx-auto px-4 py-12">
@@ -67,26 +93,13 @@ export default function Footer() {
           <div>
             <h4 className="text-lg font-semibold mb-4">Categories</h4>
             <ul className="space-y-2">
-              <li>
-                <Link href="/category/laptops" className="text-gray-400 hover:text-yellow-500 transition-colors">
-                  Laptops
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/wifi-routers" className="text-gray-400 hover:text-yellow-500 transition-colors">
-                  WiFi Routers
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/laptop-chargers" className="text-gray-400 hover:text-yellow-500 transition-colors">
-                  Laptop Chargers
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/external-drives" className="text-gray-400 hover:text-yellow-500 transition-colors">
-                  External Drives
-                </Link>
-              </li>
+              {categories.map((category) => (
+                <li key={category.slug}>
+                  <Link href={`/category/${category.slug}`} className="text-gray-400 hover:text-yellow-500 transition-colors">
+                    {labelFromCategory(category)}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -110,7 +123,17 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
-          <p>&copy; {new Date().getFullYear()} Kbee Computers. All rights reserved.</p>
+          <p>
+            &copy; {new Date().getFullYear()} Kbee Computers | All rights reserved | Developed by{' '}
+            <a
+              href="https://owusu-portfolio-site.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-yellow-500 transition-colors hover:text-yellow-400"
+            >
+              Prince Owusu
+            </a>
+          </p>
         </div>
       </div>
     </footer>

@@ -19,7 +19,7 @@ type ApiCustomer = {
 type ApiReview = {
   id: number;
   product: number;
-  rating: number;
+  rating: number | string;
   comment: string;
   created_at: string; // ISO
   customer?: ApiCustomer | null;   // nested customer present on GET
@@ -36,6 +36,12 @@ type UiReview = {
   comment: string;
   createdAt: number;
   mine?: boolean;
+};
+
+type ReviewEligibility = {
+  can_review: boolean;
+  has_review: boolean;
+  review_id?: number | null;
 };
 
 /* ===== helpers ===== */
@@ -58,12 +64,18 @@ function buildFirebaseHeaders(user: unknown): { headers: HeadersInit; uid: strin
   return { headers: h, uid };
 }
 
-function toUiReview(row: ApiReview, currentUid: string | number | null): UiReview {
+function toUiReview(
+  row: ApiReview,
+  currentUid: string | number | null,
+  currentReviewId?: number | null
+): UiReview {
   const c = row.customer || ({} as ApiCustomer);
   const displayName = c.full_name ?? row.customer_name ?? 'Customer';
   const uid = c.firebase_uid ?? row.customer_id ?? c.id ?? null;
   const createdAt = Date.parse(row.created_at || '') || Date.now();
-  const mine = currentUid != null && String(uid ?? '') === String(currentUid);
+  const mine =
+    row.id === currentReviewId ||
+    (currentUid != null && String(uid ?? '') === String(currentUid));
   return {
     id: row.id,
     uid,
@@ -76,16 +88,30 @@ function toUiReview(row: ApiReview, currentUid: string | number | null): UiRevie
   };
 }
 
-const Stars = ({ value }: { value: number }) => (
-  <div className="flex items-center gap-0.5">
-    {[1, 2, 3, 4, 5].map((i) => (
-      <Star
-        key={i}
-        className={`h-4 w-4 ${i <= value ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
-      />
-    ))}
-  </div>
+function roundHalf(value: number) {
+  return Math.round(value * 2) / 2;
+}
+
+const RatingStar = ({ fill, size = 'h-4 w-4' }: { fill: number; size?: string }) => (
+  <span className={`relative inline-block ${size}`}>
+    <Star className={`absolute inset-0 ${size} text-gray-300`} />
+    <span className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+      <Star className={`fill-yellow-400 text-yellow-400 ${size}`} />
+    </span>
+  </span>
 );
+
+const Stars = ({ value, size = 'h-4 w-4' }: { value: number; size?: string }) => {
+  const rounded = roundHalf(value);
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => {
+        const fill = Math.max(0, Math.min(1, rounded - (i - 1)));
+        return <RatingStar key={i} fill={fill} size={size} />;
+      })}
+    </div>
+  );
+};
 
 export default function ReviewForm({ productId }: { productId: string | number }) {
   const { user } = useAuthStore();
@@ -103,6 +129,8 @@ export default function ReviewForm({ productId }: { productId: string | number }
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [eligibility, setEligibility] = useState<ReviewEligibility | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -110,7 +138,7 @@ export default function ReviewForm({ productId }: { productId: string | number }
     return () => { mountedRef.current = false; };
   }, []);
 
-  async function fetchReviews() {
+  async function fetchReviews(currentEligibility = eligibility) {
     if (!numericProductId || Number.isNaN(numericProductId)) return;
     setLoading(true);
     try {
@@ -122,7 +150,7 @@ export default function ReviewForm({ productId }: { productId: string | number }
         : (data as ApiReview[]);
       const currentUid = identityKey || null;
       const mapped = (rows || [])
-        .map((r) => toUiReview(r, currentUid))
+        .map((r) => toUiReview(r, currentUid, currentEligibility?.review_id ?? null))
         .sort((a, b) => b.createdAt - a.createdAt);
       if (mountedRef.current) setReviews(mapped);
     } catch {
@@ -132,9 +160,33 @@ export default function ReviewForm({ productId }: { productId: string | number }
     }
   }
 
+  async function fetchEligibility() {
+    if (!numericProductId || Number.isNaN(numericProductId)) return null;
+    try {
+      const data = await http<ReviewEligibility>(
+        `/api/reviews/eligibility/?product=${numericProductId}`
+      );
+      if (mountedRef.current) setEligibility(data);
+      return data;
+    } catch {
+      const fallback = { can_review: false, has_review: false, review_id: null };
+      if (mountedRef.current) {
+        setEligibility(fallback);
+      }
+      return fallback;
+    }
+  }
+
   // initial + user change
   useEffect(() => {
-    fetchReviews();
+    let cancelled = false;
+    (async () => {
+      const currentEligibility = await fetchEligibility();
+      if (!cancelled) await fetchReviews(currentEligibility);
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [numericProductId, identityKey]);
 
@@ -145,14 +197,12 @@ export default function ReviewForm({ productId }: { productId: string | number }
   }, [reviews]);
 
   const submit = async () => {
-    if (!user) return toast.info('Please sign in to post a review.');
+    if (!eligibility?.can_review) return toast.info('Only customers who purchased this product can review it.');
     if (!numericProductId || Number.isNaN(numericProductId)) return toast.error('Invalid product.');
     if (rating === 0 || !comment.trim()) return toast.error('Please select a rating and write a comment.');
+    const normalizedRating = roundHalf(rating);
 
     const { headers, uid } = buildFirebaseHeaders(user);
-    if (!(headers as Record<string, string>)['X-Firebase-UID']) {
-      return toast.error('Missing user UID. Please sign in again.');
-    }
 
     try {
       setPosting(true);
@@ -163,7 +213,7 @@ export default function ReviewForm({ productId }: { productId: string | number }
         uid: uid ?? null,
         name: extractUserIdentity(user).name || 'You',
         photoURL: extractUserIdentity(user).photo || undefined,
-        rating,
+        rating: normalizedRating,
         comment: comment.trim(),
         createdAt: Date.now(),
         mine: true,
@@ -174,11 +224,12 @@ export default function ReviewForm({ productId }: { productId: string | number }
       const created = await http<ApiReview>(`/api/reviews/`, {
         method: 'POST',
         headers,
-        body: { product: numericProductId, rating, comment: comment.trim() },
+        body: { product: numericProductId, rating: normalizedRating, comment: comment.trim() },
       });
 
       // Replace optimistic with real one by reloading from server
       await fetchReviews();
+      await fetchEligibility();
 
       setRating(0);
       setHover(0);
@@ -205,16 +256,13 @@ export default function ReviewForm({ productId }: { productId: string | number }
   };
 
   const remove = async (id: number) => {
-    if (!user) return;
     const { headers } = buildFirebaseHeaders(user);
-    if (!(headers as Record<string, string>)['X-Firebase-UID']) {
-      return toast.error('Missing user UID. Please sign in again.');
-    }
 
     try {
       setDeletingId(id);
       await http<void>(`/api/reviews/${id}/`, { method: 'DELETE', headers });
       await fetchReviews(); // refresh from server to reflect truth
+      await fetchEligibility();
       toast.success('Review deleted.');
     } catch (err: any) {
       if (err instanceof ApiError) {
@@ -227,20 +275,42 @@ export default function ReviewForm({ productId }: { productId: string | number }
     }
   };
 
-  const StarBtn = ({ i }: { i: number }) => (
-    <button
-      type="button"
-      onMouseEnter={() => setHover(i)}
-      onMouseLeave={() => setHover(0)}
-      onClick={() => setRating(i)}
-      aria-label={`Rate ${i} star${i > 1 ? 's' : ''}`}
-    >
-      <Star className={`h-6 w-6 ${(hover || rating) >= i ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
-    </button>
-  );
+  const StarBtn = ({ i }: { i: number }) => {
+    const activeValue = hover || rating;
+    return (
+      <span className="relative inline-grid h-7 w-7 place-items-center">
+        <button
+          type="button"
+          onMouseEnter={() => setHover(i - 0.5)}
+          onMouseLeave={() => setHover(0)}
+          onClick={() => setRating(i - 0.5)}
+          disabled={!eligibility?.can_review}
+          aria-label={`Rate ${i - 0.5} stars`}
+          className="absolute left-0 top-0 z-10 h-full w-1/2 disabled:cursor-not-allowed"
+        />
+        <button
+          type="button"
+          onMouseEnter={() => setHover(i)}
+          onMouseLeave={() => setHover(0)}
+          onClick={() => setRating(i)}
+          disabled={!eligibility?.can_review}
+          aria-label={`Rate ${i} star${i > 1 ? 's' : ''}`}
+          className="absolute right-0 top-0 z-10 h-full w-1/2 disabled:cursor-not-allowed"
+        />
+        <span className={!eligibility?.can_review ? 'opacity-50' : ''}>
+          <RatingStar
+            fill={activeValue >= i ? 1 : activeValue >= i - 0.5 ? 0.5 : 0}
+            size="h-6 w-6"
+          />
+        </span>
+      </span>
+    );
+  };
 
   const initials = (name?: string) =>
     (name || 'U').split(' ').map((p) => p[0]).join('').toUpperCase().slice(0, 2);
+  const visibleReviews = showAll ? reviews : reviews.slice(0, 5);
+  const canReview = Boolean(eligibility?.can_review);
 
   return (
     <div className="space-y-6">
@@ -255,29 +325,34 @@ export default function ReviewForm({ productId }: { productId: string | number }
       </div>
 
       {/* Form */}
-      <div className="rounded-xl border bg-white p-5 sm:p-6">
+      <div className="rounded-xl border bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h3 className="text-base font-bold text-gray-950">
+            {eligibility?.has_review ? 'Update your review' : 'Write a review'}
+          </h3>
+          <p className="mt-1 text-sm text-gray-600">
+            {canReview
+              ? 'Share your experience with this product.'
+              : 'Only customers who have purchased this product can leave a review.'}
+          </p>
+        </div>
         <div className="mb-3 flex items-center gap-1">
           {[1, 2, 3, 4, 5].map((i) => <StarBtn key={i} i={i} />)}
-          <span className="ml-2 text-sm text-gray-500">{rating || 0}/5</span>
+          <span className="ml-2 text-sm text-gray-500">{(hover || rating || 0).toFixed(1)}/5</span>
         </div>
-
-        {!user && (
-          <p className="mb-2 text-sm text-gray-600">
-            You must be signed in to add a rating and comment.
-          </p>
-        )}
 
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           placeholder="Share your experience with this product..."
           rows={4}
+          disabled={!canReview}
           className="w-full rounded-lg border bg-white p-3 text-sm outline-none ring-0 focus:border-gray-300"
         />
 
         <div className="mt-3">
-          <Button onClick={submit} disabled={!user || posting} className="rounded-full">
-            {posting ? 'Posting…' : user ? 'Add Review' : 'Sign in to review'}
+          <Button onClick={submit} disabled={!canReview || posting} className="rounded-full">
+            {posting ? 'Posting...' : eligibility?.has_review ? 'Update Review' : 'Add Review'}
           </Button>
         </div>
       </div>
@@ -289,7 +364,7 @@ export default function ReviewForm({ productId }: { productId: string | number }
         ) : reviews.length === 0 ? (
           <p className="text-sm text-gray-600">No reviews yet. Be the first!</p>
         ) : (
-          reviews.map((r) => (
+          visibleReviews.map((r) => (
             <div key={r.id} className="flex items-start justify-between gap-4 rounded-xl border bg-white p-4">
               <div className="flex items-start gap-3">
                 {r.photoURL ? (
@@ -326,6 +401,16 @@ export default function ReviewForm({ productId }: { productId: string | number }
               )}
             </div>
           ))
+        )}
+        {reviews.length > 5 && (
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => setShowAll((v) => !v)}
+          >
+            {showAll ? 'Show fewer reviews' : `View all ${reviews.length} reviews`}
+          </Button>
         )}
       </div>
     </div>

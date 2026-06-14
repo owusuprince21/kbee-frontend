@@ -122,7 +122,7 @@ export default function HeroCarousel({ products }: HeroCarouselProps) {
                         {formatGHS(discount!)}
                       </span>
                       {percent > 0 && (
-                        <span className="rounded bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 sm:text-xs md:text-sm">
+                        <span className="hidden rounded bg-red-100 px-2 py-0.5 text-sm font-semibold text-red-700 md:inline-flex">
                           {percent}% OFF
                         </span>
                       )}
@@ -146,14 +146,14 @@ export default function HeroCarousel({ products }: HeroCarouselProps) {
             </div>
 
             {/* Image (right) */}
-            <div className="relative h-36 sm:h-48 md:h-96">
-              <div className="absolute inset-0 p-2 sm:p-3 md:p-0">
+            <div className="relative h-56 sm:h-72 md:h-[430px]">
+              <div className="absolute -inset-x-6 inset-y-0 sm:-inset-x-8 md:-inset-x-12">
                 <Image
                   src={imgSrc}
                   alt={product.name}
                   fill
                   priority
-                  className="object-contain"
+                  className="scale-125 object-contain drop-shadow-2xl sm:scale-125 md:scale-110"
                   sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 50vw"
                 />
               </div>

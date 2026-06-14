@@ -12,10 +12,58 @@ export class ApiError extends Error {
   }
 }
 
-const RAW_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api';
+const RAW_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
 const BASE_URL = RAW_BASE.replace(/\/+$/, ''); // strip trailing slash
+const GUEST_ID_KEY = 'kbee_guest_id';
 
-/** Join base + path and avoid /api/api when base already ends with /api */
+function getGuestId() {
+  if (typeof window === 'undefined') return '';
+  let guestId = window.localStorage.getItem(GUEST_ID_KEY);
+  if (!guestId) {
+    const random = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    guestId = `guest-${random}`;
+    window.localStorage.setItem(GUEST_ID_KEY, guestId);
+  }
+  return guestId;
+}
+
+function readAuthState() {
+  if (typeof window === 'undefined') return { user: null as any, token: '' };
+  try {
+    const raw = window.localStorage.getItem('auth-storage');
+    if (!raw) return { user: null as any, token: '' };
+    const parsed = JSON.parse(raw);
+    return {
+      user: parsed?.state?.user ?? null,
+      token: parsed?.state?.token ?? '',
+    };
+  } catch {
+    return { user: null as any, token: '' };
+  }
+}
+
+function applyIdentityHeaders(headers: Headers) {
+  const { user, token } = readAuthState();
+  const storedToken = token || (typeof window !== 'undefined' ? window.localStorage.getItem('authToken') || '' : '');
+  const uid = user?.uid ?? user?.id ?? user?.firebase_uid ?? null;
+  const name = user?.displayName ?? user?.full_name ?? user?.name ?? '';
+  const photo = user?.photoURL ?? user?.photo_url ?? '';
+
+  if (storedToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${storedToken}`);
+  }
+  if (uid && !headers.has('X-Firebase-UID')) headers.set('X-Firebase-UID', String(uid));
+  if (user?.email && !headers.has('X-User-Email')) headers.set('X-User-Email', String(user.email));
+  if (name && !headers.has('X-User-Name')) headers.set('X-User-Name', String(name));
+  if (photo && !headers.has('X-User-Photo')) headers.set('X-User-Photo', String(photo));
+
+  const guestId = getGuestId();
+  if (guestId && !headers.has('X-Guest-ID')) headers.set('X-Guest-ID', guestId);
+}
+
+/** Join base + path and keep Django API routes under /api exactly once. */
 function resolveApiUrl(base: string, path: string) {
   if (/^https?:\/\//i.test(path)) return path; // absolute url already
   const b = base.replace(/\/+$/, '');
@@ -24,6 +72,9 @@ function resolveApiUrl(base: string, path: string) {
   if (b.endsWith('/api') && p.startsWith('/api/')) {
     p = p.slice(4); // drop leading "/api"
     if (!p.startsWith('/')) p = `/${p}`;
+  }
+  if (!b.endsWith('/api') && !p.startsWith('/api/')) {
+    p = `/api${p}`;
   }
   return `${b}${p}`;
 }
@@ -66,6 +117,7 @@ export async function http<T = any>(
     else if (Array.isArray(headers)) headers.forEach(([k, v]) => h.set(k, v));
     else Object.entries(headers).forEach(([k, v]) => h.set(k, v as string));
   }
+  applyIdentityHeaders(h);
 
   let res: Response;
   try {

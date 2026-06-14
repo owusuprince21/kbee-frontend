@@ -86,7 +86,6 @@ export default function WishlistPage() {
         : (res as UiWishlistItem[]);
       setItems(Array.isArray(list) ? list : []);
     } catch {
-      toast.error('Could not load wishlist.');
       setItems([]);
     } finally {
       setLoading(false);

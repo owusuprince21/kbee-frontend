@@ -1,20 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { http } from '@/lib/api/http';
-
-type BrandApi = {
-  id: number;
-  name: string;
-  slug: string;
-  logo_url?: string | null;
-  image_url?: string | null;
-  logo?: string | null;
-  image?: string | null;
-};
+import { listProducts } from '@/lib/api/products';
+import type { Product } from '@/lib/types';
 
 type BrandPromo = {
   name: string;
@@ -33,20 +23,70 @@ function normalizeUrl(u?: string | null): string | undefined {
   return u.startsWith('http://') ? u.replace(/^http:\/\//, 'https://') : u;
 }
 
-function mapBrandApi(b: BrandApi): BrandPromo | null {
-  const image =
-    normalizeUrl(b.logo_url) ||
-    normalizeUrl(b.image_url) ||
-    normalizeUrl(b.logo) ||
-    normalizeUrl(b.image) ||
-    undefined;
-  if (!image) return null;
-  return {
-    name: b.name,
-    slug: b.slug,
-    image,
-    categorySlug: 'laptops',
+function titleCase(value: string) {
+  return value
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function productImage(product: Product): string | undefined {
+  const p = product as Product & {
+    main_image?: string | null;
+    main_image_url?: string | null;
   };
+  return normalizeUrl(p.main_image_url) || normalizeUrl(p.main_image) || normalizeUrl(p.images?.[0]?.image);
+}
+
+function mapProductsToPromos(products: Product[]) {
+  const seen = new Set<string>();
+  const promos: BrandPromo[] = [];
+
+  for (const product of products) {
+    const slug = String((product as any)?.brand || '').trim().toLowerCase();
+    if (!slug || slug === 'undefined' || slug === 'null' || seen.has(slug)) continue;
+
+    const image = productImage(product);
+    if (!image) continue;
+
+    seen.add(slug);
+    promos.push({
+      name: `${(product as any)?.brand_display || titleCase(slug)} Laptops`,
+      slug,
+      image,
+      categorySlug: 'laptops',
+    });
+
+    if (promos.length >= 2) break;
+  }
+
+  return promos;
+}
+
+function validPromo(p: BrandPromo) {
+  const slug = String(p.slug || '').trim().toLowerCase();
+  const categorySlug = String(p.categorySlug || 'laptops').trim().toLowerCase();
+  return (
+    Boolean(slug && slug !== 'undefined' && slug !== 'null') &&
+    Boolean(categorySlug && categorySlug !== 'undefined' && categorySlug !== 'null')
+  );
+}
+
+function promoHref(p: BrandPromo) {
+  const categorySlug = validPromo(p) ? p.categorySlug || 'laptops' : 'laptops';
+  return `/category/${categorySlug}/brand/${p.slug}`;
+}
+
+function fallbackPromo(): BrandPromo {
+  return {
+    name: 'Dell Laptops',
+    slug: 'dell',
+    image: '/dell.png',
+    bg: '#dff0f6',
+    tagline: 'Up to 30% Off',
+    categorySlug: 'laptops',
+  } as BrandPromo;
 }
 
 export default function PromoFlex({
@@ -55,27 +95,18 @@ export default function PromoFlex({
   const [fetched, setFetched] = useState<BrandPromo[] | null>(null);
 
   useEffect(() => {
-    if (promosProp?.length) return; // use provided promos
+    if (promosProp?.length) return; 
     let cancelled = false;
 
     (async () => {
       try {
-        // try featured first, then general
-        const featured = await http<BrandApi[] | { results: BrandApi[] }>(
-          '/api/brands/?featured=true&page_size=2'
-        ).catch(() => null);
-
-        const src =
-          (featured && ('results' in (featured as any) ? (featured as any).results : featured)) ||
-          (await http<BrandApi[] | { results: BrandApi[] }>(
-            '/api/brands/?page_size=2'
-          ).then((d) => ('results' in (d as any) ? (d as any).results : d)));
-
-        const mapped = (src || [])
-          .map(mapBrandApi)
-          .filter(Boolean) as BrandPromo[];
-
-        if (!cancelled) setFetched(mapped.slice(0, 2));
+        const data = await listProducts({
+          category: 'laptops',
+          page_size: 24,
+          ordering: '-updated_at',
+        });
+        const rows = Array.isArray((data as any)?.results) ? (data as any).results : [];
+        if (!cancelled) setFetched(mapProductsToPromos(rows));
       } catch {
         if (!cancelled) setFetched([]);
       }
@@ -87,19 +118,12 @@ export default function PromoFlex({
   }, [promosProp]);
 
   const promos: BrandPromo[] = useMemo(() => {
-    if (promosProp?.length) return promosProp.slice(0, 2);
-    if (fetched?.length) return fetched.slice(0, 2);
+    if (promosProp?.length) return promosProp.filter(validPromo).slice(0, 2);
+    if (fetched?.length) return fetched.filter(validPromo).slice(0, 2);
 
     // Fallback to two static promos if API has nothing yet
     return [
-      {
-        name: 'Dell Laptops',
-        slug: 'dell',
-        image: '/dell.png',
-        bg: '#dff0f6',
-        tagline: 'Up to 30% Off',
-        categorySlug: 'laptops',
-      },
+      fallbackPromo(),
       {
         name: 'HP Laptops',
         slug: 'hp',
@@ -131,13 +155,11 @@ export default function PromoFlex({
                     {p.name}
                   </h3>
 
-                  <Link
-                    href={`/category/${p.categorySlug ?? 'laptops'}/brand/${p.slug}`}
-                  >
-                    <Button className="mt-4 w-max bg-yellow-500 text-black hover:bg-yellow-600">
+                  <a href={promoHref(p)}>
+                    <Button className="mt-4 w-max rounded-full bg-yellow-500 px-5 font-bold text-black shadow-sm transition hover:bg-yellow-600 hover:shadow-md">
                       Shop Now
                     </Button>
-                  </Link>
+                  </a>
 
                   {p.tagline && (
                     <p className="mt-8 text-sm sm:text-base text-slate-700">

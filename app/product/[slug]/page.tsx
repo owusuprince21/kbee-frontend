@@ -4,7 +4,21 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, X, Image as ImageIcon } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Image as ImageIcon,
+  Heart,
+  Minus,
+  PackageCheck,
+  Plus,
+  RotateCcw,
+  ShieldCheck,
+  ShoppingCart,
+  Truck,
+  CreditCard,
+} from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { toast } from 'sonner';
 
@@ -18,9 +32,12 @@ import {
 } from '@/components/ui/dialog';
 
 import type { Product } from '@/lib/types';
-import { getProduct } from '@/lib/api/products';
+import { getProduct, listProducts } from '@/lib/api/products';
+import { useAddToCartMutation, useAddToWishlistMutation } from '@/lib/api/commerce';
 import { formatGHS } from '@/lib/currencyformat';
 import { addRecentlyViewed } from '@/lib/recentlyViewed';
+import ProductCard from '@/components/ProductCard';
+import ReviewForm from '@/components/reviews/ReviewForm';
 
 function normalizeUrl(u?: string | null) {
   if (!u) return undefined;
@@ -215,12 +232,16 @@ export default function ProductDetailPage() {
   const slug = params?.slug as string | undefined;
 
   const [product, setProduct] = useState<Product | null>(null);
+  const [related, setRelated] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [quantity, setQuantity] = useState(1);
 
   const [activeIndex, setActiveIndex] = useState(0);
 
   const [openLightbox, setOpenLightbox] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const addToCart = useAddToCartMutation();
+  const addToWishlist = useAddToWishlistMutation();
 
   useEffect(() => {
     let cancelled = false;
@@ -232,7 +253,22 @@ export default function ProductDetailPage() {
         const p = await getProduct(slug);
         if (cancelled) return;
         setProduct(p);
+        setQuantity(1);
         addRecentlyViewed(p);
+        const brandSlug = String((p as any)?.brand || '').trim();
+        if (brandSlug) {
+          listProducts({ brand: brandSlug, page_size: 16, ordering: '-updated_at' })
+            .then((data) => {
+              const rows = Array.isArray((data as any)?.results) ? (data as any).results : [];
+              const items = rows.filter((item: Product) => item.id !== p.id);
+              if (!cancelled) setRelated(items);
+            })
+            .catch(() => {
+              if (!cancelled) setRelated([]);
+            });
+        } else {
+          setRelated([]);
+        }
       } catch (e: any) {
         toast.error(e?.message || 'Failed to load product');
         router.push('/shop');
@@ -277,6 +313,8 @@ export default function ProductDetailPage() {
     (typeof product?.stock_quantity === 'number' ? product.stock_quantity > 0 : true);
 
   const brand = (product as any)?.brand?.name ?? (product as any)?.brand ?? '—';
+  const categoryName = (product as any)?.category?.name ?? 'Computers';
+  const stockQty = Number((product as any)?.stock_quantity ?? 0);
 
   const specsRaw =
     (product as any)?.specifications ??
@@ -314,6 +352,36 @@ export default function ProductDetailPage() {
       ? `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
       : '#';
   }, [product, finalPrice, specLines]);
+
+  const handleAddToCart = async () => {
+    if (!product || !inStock) return;
+    try {
+      await addToCart.mutateAsync({ productId: product.id, quantity });
+      toast.success('Added to cart.');
+    } catch (err: any) {
+      toast.error(err?.data?.detail || 'Could not add to cart.');
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!product || !inStock) return;
+    try {
+      await addToCart.mutateAsync({ productId: product.id, quantity });
+      router.push('/cart');
+    } catch (err: any) {
+      toast.error(err?.data?.detail || 'Could not add to cart.');
+    }
+  };
+
+  const handleWishlist = async () => {
+    if (!product || !inStock) return;
+    try {
+      await addToWishlist.mutateAsync(product.id);
+      toast.success('Saved to wishlist.');
+    } catch (err: any) {
+      toast.error(err?.data?.detail || 'Could not save to wishlist.');
+    }
+  };
 
   useEffect(() => {
     if (!openLightbox) return;
@@ -371,11 +439,15 @@ export default function ProductDetailPage() {
               />
             </div>
 
-            {hasDiscount && (
+            {!inStock ? (
+              <span className="absolute left-3 top-3 rounded-full bg-gray-950 px-3 py-1 text-xs font-bold text-white">
+                Out of Stock
+              </span>
+            ) : hasDiscount ? (
               <span className="absolute left-3 top-3 rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white">
                 {discountPercent}% OFF
               </span>
-            )}
+            ) : null}
           </button>
 
           <div className="mt-3">
@@ -400,8 +472,8 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        {/* RIGHT: Info (scroll only this side on desktop) */}
-        <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 sm:p-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
+        {/* RIGHT: Info */}
+        <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 sm:p-6">
           <div className="mb-3 flex items-center justify-between">
             <Link href="/shop" className="text-sm font-medium text-gray-500 hover:text-gray-700">
               ← Back to shop
@@ -420,6 +492,27 @@ export default function ProductDetailPage() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
             {product.name}
           </h1>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+            <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
+              {categoryName}
+            </span>
+            {product.is_new_arrival ? (
+              <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700">
+                New arrival
+              </span>
+            ) : null}
+            {product.is_best_seller ? (
+              <span className="rounded-full bg-amber-50 px-3 py-1 font-semibold text-amber-800">
+                Best seller
+              </span>
+            ) : null}
+            {product.is_featured ? (
+              <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                Featured
+              </span>
+            ) : null}
+          </div>
 
           <div className="mt-4 flex items-end gap-3">
             {hasDiscount ? (
@@ -449,6 +542,111 @@ export default function ProductDetailPage() {
             <p className="mt-5 text-sm leading-6 text-gray-500">No description provided.</p>
           )}
 
+          <div className="mt-6 rounded-2xl border bg-slate-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-gray-900">Quantity</div>
+                <div className="mt-1 text-xs text-gray-500">
+                  {inStock
+                    ? stockQty > 0
+                      ? `${stockQty} available`
+                      : 'Available for order'
+                    : 'Currently unavailable'}
+                </div>
+              </div>
+              <div className="flex items-center rounded-xl border bg-white">
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  disabled={quantity <= 1}
+                  className="grid h-10 w-10 place-items-center rounded-l-xl text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-300"
+                  aria-label="Decrease quantity"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <div className="grid h-10 min-w-12 place-items-center border-x px-3 text-sm font-semibold">
+                  {quantity}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => Math.min(stockQty > 0 ? stockQty : 99, q + 1))}
+                  disabled={stockQty > 0 && quantity >= stockQty}
+                  className="grid h-10 w-10 place-items-center rounded-r-xl text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-300"
+                  aria-label="Increase quantity"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Button
+                className="h-11 w-full rounded-xl bg-yellow-500 font-semibold text-black transition hover:bg-yellow-600"
+                onClick={handleAddToCart}
+                disabled={!inStock || addToCart.isPending}
+              >
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                {addToCart.isPending ? 'Adding...' : 'Add to Cart'}
+              </Button>
+              <Button
+                className="h-11 w-full rounded-xl bg-gray-950 font-semibold text-white transition hover:bg-gray-800"
+                onClick={handleBuyNow}
+                disabled={!inStock || addToCart.isPending}
+              >
+                Buy Now
+              </Button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleWishlist}
+              disabled={!inStock || addToWishlist.isPending}
+              className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-gray-700 transition hover:text-red-600"
+            >
+              <Heart className="h-4 w-4" />
+              {!inStock ? 'Wishlist unavailable' : addToWishlist.isPending ? 'Saving...' : 'Add to wishlist'}
+            </button>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border bg-white p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                <Truck className="h-4 w-4 text-yellow-600" />
+                Delivery
+              </div>
+              <p className="mt-2 text-xs leading-5 text-gray-600">
+                Shipping fee is calculated at checkout from your selected region and town.
+              </p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                <CreditCard className="h-4 w-4 text-yellow-600" />
+                Secure payment
+              </div>
+              <p className="mt-2 text-xs leading-5 text-gray-600">
+                Pay securely online with card or mobile money through Paystack.
+              </p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                <ShieldCheck className="h-4 w-4 text-yellow-600" />
+                Checked item
+              </div>
+              <p className="mt-2 text-xs leading-5 text-gray-600">
+                Products are reviewed before dispatch for accurate condition and quality.
+              </p>
+            </div>
+            <div className="rounded-xl border bg-white p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                <RotateCcw className="h-4 w-4 text-yellow-600" />
+                Support
+              </div>
+              <p className="mt-2 text-xs leading-5 text-gray-600">
+                Contact support with your order code if you need help after purchase.
+              </p>
+            </div>
+          </div>
+
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Button
               variant="outline"
@@ -467,7 +665,7 @@ export default function ProductDetailPage() {
                 disabled={!WHATSAPP_NUMBER}
               >
                 <FaWhatsapp className="mr-2 text-lg" />
-                Chat Us
+                Ask a Question
               </Button>
             </a>
           </div>
@@ -478,35 +676,55 @@ export default function ProductDetailPage() {
             </p>
           )}
 
-            {/* Specs block (show ALL specs) */}
-              <div className="mt-7">
-                <h2 className="text-sm font-bold text-gray-900">Specifications</h2>
+          <div className="mt-7">
+            <h2 className="text-sm font-bold text-gray-900">Specifications</h2>
 
-                <div className="mt-3 rounded-xl bg-slate-50 p-4 ring-1 ring-black/5">
-                  {specLines.length ? (
-                    <ul className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-                      {specLines.map((line, i) => (
-                        <li key={i} className="leading-5">
-                          {line}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-slate-600">No specifications provided.</p>
-                  )}
-                </div>
-              </div>
-
-
-          <div className="mt-6 grid grid-cols-2 gap-3 text-xs text-gray-600 sm:grid-cols-3">
-            <div className="rounded-xl bg-white p-3 ring-1 ring-black/5">Verified items</div>
-            <div className="rounded-xl bg-white p-3 ring-1 ring-black/5">Support available</div>
-            <div className="hidden rounded-xl bg-white p-3 ring-1 ring-black/5 sm:block">
-              Fast response
+            <div className="mt-3 rounded-xl bg-slate-50 p-4 ring-1 ring-black/5">
+              {specLines.length ? (
+                <ul className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+                  {specLines.map((line, i) => (
+                    <li key={i} className="flex gap-2 leading-5">
+                      <PackageCheck className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-600">No specifications provided.</p>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {related.length ? (
+        <section className="mt-10">
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-950">Related products</h2>
+              <p className="mt-1 text-sm text-gray-600">More products from {brand}.</p>
+            </div>
+            <Link href="/shop" className="text-sm font-semibold text-yellow-700 hover:text-yellow-800">
+              View shop
+            </Link>
+          </div>
+          <div className="grid auto-cols-[calc((100%_-_1rem)_/_2)] grid-flow-col gap-4 overflow-x-auto pb-3 lg:auto-cols-[calc((100%_-_4rem)_/_5)]">
+            {related.map((item) => (
+              <ProductCard key={item.id} product={item} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section id="reviews" className="mt-10">
+        <div className="mb-4">
+          <h2 className="text-xl font-bold text-gray-950">Customer reviews</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Reviews are available only to customers who purchased this product.
+          </p>
+        </div>
+        <ReviewForm productId={product.id} />
+      </section>
 
       {/* Lightbox */}
       <Dialog open={openLightbox} onOpenChange={setOpenLightbox}>

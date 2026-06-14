@@ -2,12 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { listCategories } from '@/lib/api/categories';
 
 type UiCategory = { slug: string; name: string; image: string | null | undefined };
+
+function validSlug(slug: unknown) {
+  const value = String(slug || '').trim().toLowerCase();
+  return Boolean(value && value !== 'undefined' && value !== 'null');
+}
 
 function initials(name: string) {
   const [a = '', b = ''] = name.trim().split(/\s+/);
@@ -26,9 +30,14 @@ export default function BrowseByCategory({ categories: categoriesProp }: { categ
       try {
         setLoading(true);
         const data = await listCategories();
-        if (!cancelled) setFetched(data.map(c => ({ slug: c.slug, name: c.name, image: c.image ?? null })));
-      } catch (e) {
-        console.error('Failed to load categories:', e);
+        if (!cancelled) {
+          setFetched(
+            data
+              .filter((c) => validSlug(c.slug))
+              .map(c => ({ slug: c.slug, name: c.name, image: c.image ?? null }))
+          );
+        }
+      } catch {
         if (!cancelled) setFetched([]);
       } finally {
         if (!cancelled) setLoading(false);
@@ -38,7 +47,7 @@ export default function BrowseByCategory({ categories: categoriesProp }: { categ
   }, [categoriesProp]);
 
   const categories: UiCategory[] = useMemo(
-    () => (categoriesProp?.length ? categoriesProp : fetched ?? []),
+    () => (categoriesProp?.length ? categoriesProp : fetched ?? []).filter((c) => validSlug(c.slug)),
     [categoriesProp, fetched]
   );
 
@@ -82,7 +91,7 @@ export default function BrowseByCategory({ categories: categoriesProp }: { categ
           ) : categories.length > 0 ? (
             categories.map((c) => (
               // narrower item
-              <Link key={c.slug} href={`/category/${c.slug}`} className="group w-[110px] shrink-0 snap-start md:w-[140px]">
+              <a key={c.slug} href={`/category/${c.slug}`} className="group w-[110px] shrink-0 snap-start md:w-[140px]">
                 {/* smaller image circle on mobile & desktop */}
                 <div className="mx-auto mt-4 flex h-[80px] w-[80px] items-center justify-center overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200 md:h-[100px] md:w-[100px]">
                   {c.image ? (
@@ -105,7 +114,7 @@ export default function BrowseByCategory({ categories: categoriesProp }: { categ
                 <h3 className="mt-3 text-center text-sm font-semibold text-slate-900 transition-colors group-hover:text-yellow-600">
                   {c.name}
                 </h3>
-              </Link>
+              </a>
             ))
           ) : (
             <p className="py-6 text-sm text-slate-500">No categories found.</p>

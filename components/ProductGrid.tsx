@@ -12,8 +12,6 @@ export default function ProductGrid({ products }: { products: Product[] }) {
     <div
       className="
         grid
-        /* tiny phones can stack if you want */
-        max-[380px]:grid-cols-1
         grid-cols-2
         md:grid-cols-3
         lg:grid-cols-5

@@ -36,22 +36,33 @@ function mapCategory(row: BackendCategory): Category {
   return {
     id: Number(row.id),
     name: String(row.name),
-    slug: String(row.slug),
+    slug: String(row.slug || '').trim(),
     image: normalizeUrl(rawImage),
     description: row.description ?? null,
   };
 }
 
+function hasValidSlug(category: Category) {
+  const slug = category.slug.trim().toLowerCase();
+  return Boolean(slug && slug !== 'undefined' && slug !== 'null');
+}
+
 export async function listCategories(): Promise<Category[]> {
-  // ✅ NO /api here because BASE_URL already ends with /api
-  const data = await http<BackendCategory[] | Paginated<BackendCategory>>(
-    '/categories/?page_size=100'
-  );
+  let data: BackendCategory[] | Paginated<BackendCategory>;
+
+  try {
+    data = await http<BackendCategory[] | Paginated<BackendCategory>>(
+      '/categories/?page_size=100'
+    );
+  } catch {
+    return [];
+  }
 
   const rows =
     Array.isArray((data as Paginated<BackendCategory>)?.results)
       ? (data as Paginated<BackendCategory>).results
       : (data as BackendCategory[]);
 
-  return (rows || []).map(mapCategory);
+  const mapped = (rows || []).map(mapCategory).filter(hasValidSlug);
+  return mapped;
 }

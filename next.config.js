@@ -2,9 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // Skip ESLint during builds (keeps CI/CD green if you only lint locally)
-  eslint: { ignoreDuringBuilds: true },
-
   images: {
     remotePatterns: [
       {

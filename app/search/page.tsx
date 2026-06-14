@@ -1,9 +1,26 @@
 // app/search/page.tsx
+import type { Metadata } from 'next';
 import ProductGrid from '@/components/ProductGrid';
+import { createPageMetadata } from '@/lib/seo';
 
 type PageProps = {
-  searchParams: { q?: string; page?: string; page_size?: string; ordering?: string };
+  searchParams:
+    | Promise<{ q?: string; page?: string; page_size?: string; ordering?: string }>
+    | { q?: string; page?: string; page_size?: string; ordering?: string };
 };
+
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const q = (resolvedSearchParams.q || '').trim();
+
+  return createPageMetadata({
+    title: q ? `Search results for ${q}` : 'Search Products',
+    description: q
+      ? `Shop KBee Computers products matching ${q}, including quality laptops, accessories, storage, and computer essentials in Ghana.`
+      : 'Search quality new and UK used laptops, accessories, storage, peripherals, and computer essentials from KBee Computers in Ghana.',
+    path: q ? `/search?q=${encodeURIComponent(q)}` : '/search',
+  });
+}
 
 async function fetchProducts(q = '', page = 1, pageSize = 24, ordering = '-created_at') {
   const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
@@ -20,10 +37,11 @@ async function fetchProducts(q = '', page = 1, pageSize = 24, ordering = '-creat
 }
 
 export default async function SearchPage({ searchParams }: PageProps) {
-  const q        = (searchParams.q || '').trim();
-  const page     = Number(searchParams.page || 1) || 1;
-  const pageSize = Number(searchParams.page_size || 24) || 24;
-  const ordering = searchParams.ordering || '-created_at';
+  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const q = (resolvedSearchParams.q || '').trim();
+  const page = Number(resolvedSearchParams.page || 1) || 1;
+  const pageSize = Number(resolvedSearchParams.page_size || 24) || 24;
+  const ordering = resolvedSearchParams.ordering || '-created_at';
 
   const products = await fetchProducts(q, page, pageSize, ordering);
 

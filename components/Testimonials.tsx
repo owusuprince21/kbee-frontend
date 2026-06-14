@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef } from 'react';
 
 export type Testimonial = {
+  id?: number | string;
   comment: string;
   rating: number;
   name?: string | null;
@@ -24,6 +25,10 @@ export type Testimonial = {
     | null;
   productSlug?: string;
   product_slug?: string;
+  productName?: string;
+  product_name?: string;
+  productImage?: string | null;
+  product_image?: string | null;
   productId?: number | string;
   product_id?: number | string;
   productUrl?: string;
@@ -75,6 +80,26 @@ function getProductHref(t: Testimonial): string | undefined {
   return base ? `${base}#reviews` : undefined;
 }
 
+function getProductName(t: Testimonial): string | undefined {
+  const p: any = t.product;
+  const name =
+    (t as any).productName ??
+    (t as any).product_name ??
+    (typeof p === 'object' && p ? p.name : undefined);
+
+  return name ? String(name) : undefined;
+}
+
+function firstSentence(comment: string) {
+  const text = String(comment || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+
+  const match = text.match(/^(.+?[.!?])(?:\s|$)/);
+  const sentence = match?.[1]?.trim() || text;
+
+  return sentence.length < text.length ? `${sentence}...` : sentence;
+}
+
 function Initials({ name }: { name: string }) {
   const letters = name
     .split(' ')
@@ -90,18 +115,34 @@ function Initials({ name }: { name: string }) {
 }
 
 function Stars({ value }: { value: number }) {
-  const v = Math.max(0, Math.min(5, Math.round(value)));
+  const v = Math.max(0, Math.min(5, Math.round(value * 2) / 2));
   return (
     <div className="flex items-center gap-1" aria-label={`${v} out of 5 stars`}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <span key={i} className={i < v ? 'text-yellow-500' : 'text-gray-300'}>★</span>
-      ))}
+      {Array.from({ length: 5 }).map((_, i) => {
+        const fill = Math.max(0, Math.min(1, v - i));
+        return (
+          <span key={i} className="relative inline-block h-4 w-4 text-gray-300">
+            ★
+            <span className="absolute inset-0 overflow-hidden text-yellow-500" style={{ width: `${fill * 100}%` }}>
+              ★
+            </span>
+          </span>
+        );
+      })}
     </div>
   );
 }
 
 export default function Testimonials({ items }: { items: Testimonial[] }) {
-  const trackItems = useMemo(() => (items?.length ? [...items, ...items] : []), [items]);
+  const trackItems = useMemo(() => {
+    const seen = new Set<string>();
+    return (items || []).filter((item) => {
+      const key = item.id ? `id:${item.id}` : `${item.full_name || item.name || item.customer_name || ''}:${item.comment}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [items]);
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -123,9 +164,10 @@ export default function Testimonials({ items }: { items: Testimonial[] }) {
     if (!vp || !track) return;
 
     if (!pausedRef.current) {
-      const half = track.scrollWidth / 2;
+      const maxScroll = Math.max(0, track.scrollWidth - vp.clientWidth);
+      if (maxScroll <= 1) return;
       vp.scrollLeft += SPEED;
-      if (vp.scrollLeft >= half) vp.scrollLeft -= half;
+      if (vp.scrollLeft >= maxScroll) vp.scrollLeft = 0;
     }
 
     rafRef.current = requestAnimationFrame(tick);
@@ -192,6 +234,8 @@ export default function Testimonials({ items }: { items: Testimonial[] }) {
             {trackItems.map((t, idx) => {
               const { name, photo } = pickNameAndPhoto(t);
               const href = getProductHref(t);
+              const productName = getProductName(t);
+              const shortComment = firstSentence(t.comment);
 
               const CardInner = (
                 <article className={cardClass}>
@@ -217,36 +261,44 @@ export default function Testimonials({ items }: { items: Testimonial[] }) {
 
                   <Stars value={t.rating} />
 
+                  {productName ? (
+                    <p className="mt-2 truncate rounded-md bg-yellow-50 px-2 py-1 text-xs font-semibold text-yellow-800">
+                      Review from {productName}
+                    </p>
+                  ) : null}
+
                   {/* Reserve flexible space for the comment so the CTA stays aligned */}
                   <div className="mt-2 flex-1">
                     <p
-                      className="break-words text-sm leading-snug italic text-gray-700 line-clamp-3"
+                      className="break-words text-sm leading-snug italic text-gray-700 line-clamp-2"
                       title={t.comment}
                     >
-                      “{t.comment}”
+                      “{shortComment}”
                     </p>
                   </div>
 
                   {href ? (
-                    <span className="mt-2 inline-block text-xs font-medium text-yellow-700 opacity-0 transition group-hover:opacity-100">
+                    <span className="mt-2 inline-block text-xs font-medium text-yellow-700 opacity-100 transition group-hover:text-yellow-800 sm:opacity-0 sm:group-hover:opacity-100">
                       View product &amp; reviews →
                     </span>
                   ) : null}
                 </article>
               );
 
+              const key = t.id ? `review-${t.id}` : `review-${idx}-${t.comment}`;
+
               return href ? (
                 <Link
-                  key={idx}
+                  key={key}
                   href={href}
                   className="block rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500"
-                  aria-label={`Read ${name}'s full review on product page`}
+                  aria-label={`Read ${name}'s full review${productName ? ` for ${productName}` : ''} on product page`}
                   title="Go to product details"
                 >
                   {CardInner}
                 </Link>
               ) : (
-                <div key={idx}>{CardInner}</div>
+                <div key={key}>{CardInner}</div>
               );
             })}
           </div>

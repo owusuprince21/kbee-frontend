@@ -54,6 +54,7 @@ type Order = {
 const toNum = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const money = (n: unknown, ccy?: string | null) =>
   `${ccy?.toUpperCase() === 'GHS' ? 'GH₵' : ccy || 'GHS'}${toNum(n).toLocaleString()}`;
+const orderLabel = (o: Order) => o.code || `Order ID ${o.id}`;
 const fmtDateShort = (s?: string | null) => {
   if (!s) return '—';
   const d = new Date(s);
@@ -236,7 +237,7 @@ export default function OrdersPage() {
                 </div>
 
                 <div className="mb-2 pr-28">
-                  <div className="text-lg font-semibold">Order #{o.id}</div>
+                  <div className="text-lg font-semibold">{orderLabel(o)}</div>
                   <div className="text-sm text-gray-500">Placed {fmtDateShort(o.created_at)}</div>
                 </div>
 
