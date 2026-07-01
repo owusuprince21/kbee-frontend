@@ -40,6 +40,10 @@ export type HotItemAPI = {
   } | null;
 };
 
+const CACHE_MS = 60_000;
+const hotItemsCache = new Map<string, { expiresAt: number; data: HotItemAPI[] }>();
+const inflight = new Map<string, Promise<HotItemAPI[]>>();
+
 function buildApiRoot() {
   // Accept either env var; normalize trailing slashes and optional /api suffix
   const raw = (process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -53,17 +57,32 @@ function buildApiRoot() {
   return /\/api$/.test(raw) ? raw : `${raw}/api`;
 }
 
-async function getJsonArray(url: string) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) {
-    if (process.env.NODE_ENV !== "production") {
-      // eslint-disable-next-line no-console
-      console.error("[hotItems] fetch failed", res.status, url);
+async function getJsonArray(url: string): Promise<HotItemAPI[]> {
+  const cached = hotItemsCache.get(url);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+
+  const pending = inflight.get(url);
+  if (pending) return pending;
+
+  const request = (async () => {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      if (res.status !== 429 && process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.error("[hotItems] fetch failed", res.status, url);
+      }
+      return [];
     }
-    throw new Error(String(res.status));
-  }
-  const data = await res.json();
-  return Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+    const data = await res.json();
+    const arr = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+    hotItemsCache.set(url, { expiresAt: Date.now() + CACHE_MS, data: arr as HotItemAPI[] });
+    return arr as HotItemAPI[];
+  })().finally(() => {
+    inflight.delete(url);
+  });
+
+  inflight.set(url, request);
+  return request;
 }
 
 export async function listHotItems(which: "active" | "all" = "active"): Promise<HotItemAPI[]> {

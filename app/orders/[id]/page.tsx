@@ -138,7 +138,7 @@ export default function OrderDetailPage() {
   const idOrCode = Array.isArray(idParam) ? idParam[0] : idParam;
 
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, hasHydrated, authReady } = useAuthStore();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -152,14 +152,13 @@ export default function OrderDetailPage() {
 
   // Guard unauthenticated
   useEffect(() => {
-    if (!user) {
-      router.replace('/');
-      router.refresh();
+    if (hasHydrated && authReady && !user) {
+      router.replace(`/signin?next=${encodeURIComponent(`/orders/${idOrCode || ''}`)}`);
     }
-  }, [user, router]);
+  }, [hasHydrated, authReady, user, idOrCode, router]);
 
   const loadOrder = async () => {
-    if (!user) return;
+    if (!hasHydrated || !authReady || !user) return;
     if (!idOrCode || idOrCode === 'undefined') {
       toast.error('Invalid order link.');
       router.replace('/orders');
@@ -208,9 +207,9 @@ export default function OrderDetailPage() {
 
   // Initial fetch
   useEffect(() => {
-    if (user) void loadOrder();
+    if (hasHydrated && authReady && user) void loadOrder();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, idOrCode]);
+  }, [hasHydrated, authReady, user, idOrCode]);
 
   // Auto-refresh while pending-ish
   useEffect(() => {
@@ -220,7 +219,7 @@ export default function OrderDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canAutoRefresh]);
 
-  if (!user) return null;
+  if (!hasHydrated || !authReady || !user) return null;
 
   const displayCode = order?.code || (order ? `Order ID ${order.id}` : '');
   const hasReceipt = Boolean(order?.code || order?.receipt_url);

@@ -16,11 +16,14 @@ function userFromCustomer(customer: any): User {
 }
 
 export default function AuthBootstrap() {
-  const { setUser, setToken, setAuthReady, logout } = useAuthStore();
+  const { hasHydrated, setUser, setToken, setAuthReady } = useAuthStore();
 
   useEffect(() => {
+    if (!hasHydrated) return;
+
     let unsubscribe: (() => void) | undefined;
     let active = true;
+    setAuthReady(false);
 
     configurePrivateAuthPersistence()
       .then(() => clearLegacyAuthStorage())
@@ -37,7 +40,11 @@ export default function AuthBootstrap() {
               setToken(null);
             } catch {
               if (!active) return;
-              logout();
+              // Firebase is intentionally memory-only, so after a hard refresh
+              // the backend session or the safe persisted customer is the source
+              // of truth. Do not clear it unless the user explicitly logs out.
+              setUser(useAuthStore.getState().user);
+              setToken(null);
             } finally {
               if (active) setAuthReady(true);
             }
@@ -72,7 +79,7 @@ export default function AuthBootstrap() {
       active = false;
       unsubscribe?.();
     };
-  }, [logout, setAuthReady, setToken, setUser]);
+  }, [hasHydrated, setAuthReady, setToken, setUser]);
 
   return null;
 }

@@ -97,7 +97,7 @@ async function fetchOrders(url?: string): Promise<OrdersResult> {
 
 /* ---------- page ---------- */
 export default function OrdersPage() {
-  const { user, authReady } = useAuthStore();
+  const { user, hasHydrated, authReady } = useAuthStore();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<
     'all' | 'pending' | 'processing' | 'paid' | 'failed' | 'cancelled' | 'packaged' | 'shipped' | 'delivered'
@@ -107,7 +107,7 @@ export default function OrdersPage() {
   const ordersQuery = useQuery<OrdersResult>({
     queryKey: ['orders', user?.id, pageUrl],
     queryFn: () => fetchOrders(pageUrl || undefined),
-    enabled: authReady && Boolean(user),
+    enabled: hasHydrated && authReady && Boolean(user),
     refetchInterval: (query) => {
       const orders = query.state.data?.orders ?? [];
       const needsRefresh = orders.some(o =>
@@ -121,7 +121,7 @@ export default function OrdersPage() {
   const orders: Order[] = ordersQuery.data?.orders ?? [];
   const nextUrl = ordersQuery.data?.nextUrl ?? null;
   const prevUrl = ordersQuery.data?.prevUrl ?? null;
-  const loading = !authReady || ordersQuery.isLoading || ordersQuery.isFetching;
+  const loading = !hasHydrated || !authReady || ordersQuery.isLoading || ordersQuery.isFetching;
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -186,7 +186,7 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {authReady && !user ? (
+      {hasHydrated && authReady && !user ? (
         <div className="rounded border bg-white p-4 text-sm">
           <p className="mb-2">You need to sign in to view your orders.</p>
           <Link href="/signin?next=%2Forders" className="text-indigo-600 underline">Sign in</Link>

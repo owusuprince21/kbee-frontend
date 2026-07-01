@@ -9,6 +9,15 @@ export const siteDescription =
 
 export const siteKeywords = [
   'KBee Computers',
+  'kbeecomputersgh.com',
+  'kbeecomputers',
+  'kbee',
+  'kbee computers',
+  'kbee computers ghana',
+  'kbee computers accra',
+  'kbee computers tamale',
+  'kbee computers bolgatanga',
+  'kbee computers wa',
   'laptops in Ghana',
   'UK used laptops Ghana',
   'new laptops Ghana',

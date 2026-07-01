@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { User } from '@/lib/types';
 
 interface AuthState {
@@ -14,15 +15,25 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>()(
-  (set) => ({
-    user: null,
-    token: null,
-    hasHydrated: true,
-    authReady: false,
-    setUser: (user) => set({ user }),
-    setToken: (token) => set({ token }),
-    setHasHydrated: (hasHydrated) => set({ hasHydrated }),
-    setAuthReady: (authReady) => set({ authReady }),
-    logout: () => set({ user: null, token: null }),
-  })
+  persist(
+    (set) => ({
+      user: null,
+      token: null,
+      hasHydrated: false,
+      authReady: false,
+      setUser: (user) => set({ user }),
+      setToken: (token) => set({ token }),
+      setHasHydrated: (hasHydrated) => set({ hasHydrated }),
+      setAuthReady: (authReady) => set({ authReady }),
+      logout: () => set({ user: null, token: null, authReady: true }),
+    }),
+    {
+      name: 'kbee-auth',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ user: state.user }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    }
+  )
 );

@@ -182,11 +182,10 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    if (authReady && !user) {
-      router.replace('/');
-      router.refresh();
+    if (hasHydrated && authReady && !user) {
+      router.replace('/signin?next=%2Fprofile');
     }
-  }, [authReady, user, router]);
+  }, [hasHydrated, authReady, user, router]);
 
   useEffect(() => {
     if (!user) return;

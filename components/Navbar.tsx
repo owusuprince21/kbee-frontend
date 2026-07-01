@@ -89,8 +89,8 @@ export default function Navbar() {
         <div className="container mx-auto px-3 sm:px-4">
           <div className="flex h-14 items-center justify-between gap-2 md:h-16 lg:h-20">
             {/* Logo + Brand */}
-            <div className="min-w-0 shrink-0">
-              <Link href="/" className="flex items-center gap-2 md:gap-3">
+            <div className="shrink-0">
+              <Link href="/" className="flex min-w-max items-center gap-1.5 sm:gap-2 md:gap-3">
                 <span className="relative h-7 w-7 overflow-hidden rounded-full ring-1 ring-slate-500/30 md:h-9 md:w-9 lg:h-10 lg:w-10">
                   <Image
                     src="/logo.jpeg"
@@ -101,7 +101,7 @@ export default function Navbar() {
                     priority
                   />
                 </span>
-                <span className="block max-w-[120px] truncate text-sm font-bold leading-none sm:max-w-[180px] md:text-base lg:text-xl">
+                <span className="block whitespace-nowrap text-[13px] font-bold leading-none text-slate-950 sm:text-sm md:text-base lg:text-xl">
                   Kbee Computers
                 </span>
               </Link>
