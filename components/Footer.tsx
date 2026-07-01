@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin } from 'lucide-react';
-import { FaXTwitter } from 'react-icons/fa6';
+import { Mail, Phone, MapPin } from 'lucide-react';
+import { FaFacebookF, FaInstagram, FaTiktok, FaWhatsapp } from 'react-icons/fa6';
 import { listCategories, type Category } from '@/lib/api/categories';
 
 function labelFromCategory(category: Category) {
@@ -14,6 +14,13 @@ function labelFromCategory(category: Category) {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
 }
+
+const socialLinks = [
+  { label: 'Facebook', href: '#', icon: FaFacebookF },
+  { label: 'Instagram', href: '#', icon: FaInstagram },
+  { label: 'TikTok', href: '#', icon: FaTiktok },
+  { label: 'WhatsApp', href: 'https://wa.me/233248147215', icon: FaWhatsapp },
+];
 
 export default function Footer() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -38,19 +45,20 @@ export default function Footer() {
             <p className="text-gray-400 mb-4">
               Your trusted source for quality UK used and new laptops, accessories, and computer equipment.
             </p>
-            <div className="flex gap-4">
-              <a href="#" className="text-gray-400 hover:text-slate-500 transition-colors">
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-gray-400 hover:text-slate-500 transition-colors">
-                <FaXTwitter className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-gray-400 hover:text-slate-500 transition-colors">
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-gray-400 hover:text-slate-500 transition-colors">
-                <Linkedin className="w-5 h-5" />
-              </a>
+            <div className="flex gap-3">
+              {socialLinks.map(({ label, href, icon: Icon }) => (
+                <a
+                  key={label}
+                  href={href}
+                  aria-label={label}
+                  title={label}
+                  target={href.startsWith('http') ? '_blank' : undefined}
+                  rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-gray-300 transition-colors hover:border-amber-500 hover:text-amber-400"
+                >
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))}
             </div>
           </div>
 

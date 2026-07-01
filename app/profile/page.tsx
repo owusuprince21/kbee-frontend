@@ -95,6 +95,24 @@ type CustomerAccount = {
   bio?: string | null;     // merged from AccountDetail by backend
 };
 
+const emptyAddress = (name?: string | null): Address => ({
+  id: 0,
+  full_name: name ?? '',
+  line1: '',
+  line2: '',
+  city: '',
+  region: '',
+  postal_code: '',
+  country: 'Ghana',
+  phone: '',
+  is_default: false,
+});
+
+const valueOrFallback = (value: unknown, fallback: string | null | undefined = '') => {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return text || fallback || '';
+};
+
 /* ------------------------------- utilities ------------------------------ */
 
 const toNum = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
@@ -167,19 +185,10 @@ export default function ProfilePage() {
   const [loadingAddresses, setLoadingAddresses] = useState(true);
   const [savingAccount, setSavingAccount] = useState(false);
   const [addingAddr, setAddingAddr] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<number | string | null>(null);
+  const [updatingAddress, setUpdatingAddress] = useState(false);
 
-  const [addrForm, setAddrForm] = useState<Address>({
-    id: 0,
-    full_name: me.name ?? '',
-    line1: '',
-    line2: '',
-    city: '',
-    region: '',
-    postal_code: '',
-    country: 'Ghana',
-    phone: '',
-    is_default: false,
-  });
+  const [addrForm, setAddrForm] = useState<Address>(() => emptyAddress(me.name));
 
   useEffect(() => {
     if (hasHydrated && authReady && !user) {
@@ -235,9 +244,9 @@ export default function ProfilePage() {
         const res = await http<any>(`/api/customers/me/`, { headers }).catch(() => null);
         if (!cancelled && res) {
           setAccount({
-            full_name: res.full_name ?? me.name ?? '',
-            email: res.email ?? me.email ?? '',
-            photo_url: res.photo_url ?? me.photo ?? '',
+            full_name: valueOrFallback(res.full_name, me.name),
+            email: valueOrFallback(res.email, me.email),
+            photo_url: valueOrFallback(res.photo_url, me.photo),
             phone: res.phone ?? '',
             bio: res.bio ?? '',
           });
@@ -276,9 +285,9 @@ export default function ProfilePage() {
       const saved = await http<any>(`/api/customers/me/`, { method: 'PATCH', headers, body: account });
       setAccount((a) => ({
         ...a,
-        full_name: saved?.full_name ?? a.full_name ?? '',
-        email: saved?.email ?? a.email ?? '',
-        photo_url: saved?.photo_url ?? a.photo_url ?? '',
+        full_name: valueOrFallback(saved?.full_name, a.full_name),
+        email: valueOrFallback(saved?.email, a.email),
+        photo_url: valueOrFallback(saved?.photo_url, a.photo_url),
         phone: saved?.phone ?? a.phone ?? '',
         bio: saved?.bio ?? a.bio ?? '',
       }));
@@ -321,7 +330,8 @@ export default function ProfilePage() {
         if (created.is_default) return next.map(a => ({ ...a, is_default: a.id === created.id }));
         return next;
       });
-      setAddrForm(f => ({ ...f, line1: '', line2: '', city: '', region: '', postal_code: '', phone: '' }));
+      setAddrForm(emptyAddress(me.name));
+      setEditingAddressId(null);
       toast.success('Address added.');
     } catch (err) {
       if (err instanceof ApiError) {
@@ -331,6 +341,66 @@ export default function ProfilePage() {
       }
     } finally {
       setAddingAddr(false);
+    }
+  };
+
+  const startEditAddress = (address: Address) => {
+    setEditingAddressId(address.id);
+    setAddrForm({
+      ...address,
+      full_name: address.full_name ?? me.name ?? '',
+      line1: address.line1 ?? '',
+      line2: address.line2 ?? '',
+      city: address.city ?? '',
+      region: address.region ?? '',
+      postal_code: address.postal_code ?? '',
+      country: address.country ?? 'Ghana',
+      phone: address.phone ?? '',
+      is_default: Boolean(address.is_default),
+    });
+  };
+
+  const cancelEditAddress = () => {
+    setEditingAddressId(null);
+    setAddrForm(emptyAddress(me.name));
+  };
+
+  const updateAddress = async () => {
+    if (!editingAddressId) return;
+    if (!addrForm.line1?.trim() || !addrForm.city?.trim()) {
+      toast.error('Please fill at least Address line 1 and City.');
+      return;
+    }
+    try {
+      setUpdatingAddress(true);
+      const headers = buildFirebaseHeaders(user);
+      const updated = await http<Address>(`/api/addresses/${editingAddressId}/`, {
+        method: 'PATCH',
+        headers,
+        body: {
+          ...addrForm,
+          line1: String(addrForm.line1).trim(),
+          line2: String(addrForm.line2 || '').trim() || null,
+        },
+      });
+      setAddresses((prev) =>
+        prev.map((address) => {
+          if (address.id === updated.id) return updated;
+          if (updated.is_default) return { ...address, is_default: false };
+          return address;
+        })
+      );
+      setEditingAddressId(null);
+      setAddrForm(emptyAddress(me.name));
+      toast.success('Address updated.');
+    } catch (err) {
+      if (err instanceof ApiError) {
+        toast.error(err.data?.detail || 'Could not update address.');
+      } else {
+        toast.error('Could not update address.');
+      }
+    } finally {
+      setUpdatingAddress(false);
     }
   };
 
@@ -518,9 +588,14 @@ export default function ProfilePage() {
             addrForm={addrForm}
             setAddrForm={setAddrForm}
             onAdd={addAddress}
+            onUpdate={updateAddress}
+            onEdit={startEditAddress}
+            onCancelEdit={cancelEditAddress}
             onMakeDefault={setDefaultAddress}
             onDelete={deleteAddress}
             adding={addingAddr}
+            updating={updatingAddress}
+            editingAddressId={editingAddressId}
           />
         </TabsContent>
 
@@ -547,11 +622,32 @@ function AddressesPanel(props: {
   addrForm: Address;
   setAddrForm: (u: Address | ((p: Address) => Address)) => void;
   onAdd: () => void;
+  onUpdate: () => void;
+  onEdit: (address: Address) => void;
+  onCancelEdit: () => void;
   onMakeDefault: (id: number | string) => void;
   onDelete: (id: number | string) => void;
   adding: boolean;
+  updating: boolean;
+  editingAddressId: number | string | null;
 }) {
-  const { addresses, loading, meName, addrForm, setAddrForm, onAdd, onMakeDefault, onDelete, adding } = props;
+  const {
+    addresses,
+    loading,
+    meName,
+    addrForm,
+    setAddrForm,
+    onAdd,
+    onUpdate,
+    onEdit,
+    onCancelEdit,
+    onMakeDefault,
+    onDelete,
+    adding,
+    updating,
+    editingAddressId,
+  } = props;
+  const isEditing = editingAddressId !== null;
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
@@ -585,11 +681,17 @@ function AddressesPanel(props: {
                 <p className="text-sm text-gray-700">
                   {a.country || '—'}{a.phone ? ` • ${a.phone}` : ''}
                 </p>
-                <div className="mt-3 flex items-center justify-end gap-2">
+                <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEdit(a)}
+                  >
+                    Edit
+                  </Button>
                   <Button
                     variant="destructive"
                     size="sm"
-                    disabled={a.is_default && addresses.length === 1}
                     onClick={() => onDelete(a.id)}
                   >
                     Delete
@@ -601,9 +703,16 @@ function AddressesPanel(props: {
         )}
       </div>
 
-      {/* Add form */}
+      {/* Add/Edit form */}
       <div className="rounded-lg border bg-white p-4">
-        <h3 className="mb-3 text-lg font-semibold">Add a new address</h3>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold">{isEditing ? 'Edit address' : 'Add a new address'}</h3>
+          {isEditing ? (
+            <Button type="button" variant="outline" size="sm" onClick={onCancelEdit}>
+              Cancel
+            </Button>
+          ) : null}
+        </div>
         <div className="space-y-3">
           <div>
             <Label htmlFor="nm">Full name</Label>
@@ -697,11 +806,11 @@ function AddressesPanel(props: {
           </div>
 
           <Button
-            onClick={onAdd}
-            disabled={adding}
+            onClick={isEditing ? onUpdate : onAdd}
+            disabled={adding || updating}
             className="w-full bg-amber-600 text-white hover:bg-amber-700"
           >
-            {adding ? 'Adding…' : 'Add address'}
+            {isEditing ? (updating ? 'Saving…' : 'Save address') : (adding ? 'Adding…' : 'Add address')}
           </Button>
         </div>
       </div>

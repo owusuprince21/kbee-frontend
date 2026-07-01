@@ -16,7 +16,7 @@ export default function AboutPage() {
   return (
     <main className="min-h-screen bg-white">
       {/* Hero */}
-      <section className="border-b bg-slate-950 text-white">
+      <section className="border-b border-gray-800 bg-gradient-to-r from-gray-900 via-gray-900 to-gray-800 text-white">
         <div className="container mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
           <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-50">

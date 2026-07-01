@@ -9,12 +9,10 @@ import {
   Clock,
   MessageSquare,
   Send,
-  Facebook,
-  Instagram,
   Navigation,
   ShieldCheck,
 } from 'lucide-react';
-import { FaXTwitter } from 'react-icons/fa6'; // ← use X (Twitter) from react-icons
+import { FaFacebookF, FaInstagram, FaTiktok, FaWhatsapp } from 'react-icons/fa6';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,6 +21,12 @@ const SHOP_ADDRESS = 'Accra Kingsway Building, Shop No. 99, Ghana';
 const MAP_QUERY = 'KBee Computers Accra Kingsway Building Shop No. 99 Ghana';
 const MAP_EMBED_SRC = `https://www.google.com/maps?q=${encodeURIComponent(MAP_QUERY)}&z=16&output=embed`;
 const MAP_LINK = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(MAP_QUERY)}`;
+const SOCIAL_LINKS = [
+  { label: 'Facebook', href: '#', icon: FaFacebookF },
+  { label: 'Instagram', href: '#', icon: FaInstagram },
+  { label: 'TikTok', href: '#', icon: FaTiktok },
+  { label: 'WhatsApp', href: 'https://wa.me/233248147215', icon: FaWhatsapp },
+];
 
 export default function ContactPage() {
   const [sent, setSent] = useState(false);
@@ -57,7 +61,7 @@ export default function ContactPage() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-white">
       {/* Hero */}
-      <section className="border-b bg-slate-950 text-white">
+      <section className="border-b border-gray-800 bg-gradient-to-r from-gray-900 via-gray-900 to-gray-800 text-white">
         <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 sm:py-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
           <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-amber-700">
@@ -170,32 +174,21 @@ export default function ContactPage() {
                 <MessageSquare className="h-5 w-5 text-amber-600" />
                 <h3 className="text-sm font-semibold text-slate-900">Social</h3>
               </div>
-              <p className="text-sm text-slate-600">Find us on Facebook, Instagram, and X.</p>
+              <p className="text-sm text-slate-600">Find us on Facebook, Instagram, TikTok, and WhatsApp.</p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <Link
-                  href="#"
-                  aria-label="Facebook"
-                  title="Facebook"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-amber-700 hover:bg-slate-50"
-                >
-                  <Facebook className="h-5 w-5" />
-                </Link>
-                <Link
-                  href="#"
-                  aria-label="Instagram"
-                  title="Instagram"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-amber-700 hover:bg-slate-50"
-                >
-                  <Instagram className="h-5 w-5" />
-                </Link>
-                <Link
-                  href="#"
-                  aria-label="X"
-                  title="X"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-amber-700 hover:bg-slate-50"
-                >
-                  <FaXTwitter className="h-5 w-5" />
-                </Link>
+                {SOCIAL_LINKS.map(({ label, href, icon: Icon }) => (
+                  <Link
+                    key={label}
+                    href={href}
+                    aria-label={label}
+                    title={label}
+                    target={href.startsWith('http') ? '_blank' : undefined}
+                    rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-amber-700 transition-colors hover:border-amber-500 hover:bg-amber-50"
+                  >
+                    <Icon className="h-5 w-5" />
+                  </Link>
+                ))}
               </div>
             </div>
           </div>

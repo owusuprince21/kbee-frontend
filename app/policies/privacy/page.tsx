@@ -64,7 +64,7 @@ export default function PrivacyPolicyPage() {
   return (
     <main className="min-h-screen bg-white">
       {/* Hero */}
-      <section className="border-b bg-slate-950 text-white">
+      <section className="border-b border-gray-800 bg-gradient-to-r from-gray-900 via-gray-900 to-gray-800 text-white">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:py-14">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">
             <span className="h-2 w-2 rounded-full bg-amber-600" />
