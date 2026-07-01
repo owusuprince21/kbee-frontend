@@ -26,7 +26,8 @@ function extractUserIdentity(u: unknown) {
 function buildFirebaseHeaders(user: unknown): HeadersInit {
   const { uid, email, name, photo } = extractUserIdentity(user);
   const h: Record<string, string> = {};
-  if (uid != null) h['X-Firebase-UID'] = String(uid);
+  const firebaseUid = uid == null ? '' : String(uid);
+  if (firebaseUid && !firebaseUid.startsWith('customer:')) h['X-Firebase-UID'] = firebaseUid;
   if (email) h['X-User-Email'] = String(email);
   if (name) h['X-User-Name'] = String(name);
   if (photo) h['X-User-Photo'] = String(photo);
@@ -241,7 +242,7 @@ export default function CartPage() {
         <h1 className="mb-6 text-2xl font-bold sm:text-4xl">Your Cart</h1>
         <p className="mb-8 text-gray-600">Your cart is empty</p>
         <Link href="/shop">
-          <Button className="bg-yellow-500 text-black hover:bg-yellow-600">Continue Shopping</Button>
+          <Button className="bg-amber-600 text-white hover:bg-amber-700">Continue Shopping</Button>
         </Link>
       </div>
     );
@@ -321,7 +322,7 @@ export default function CartPage() {
                 <Link href={`/product/${p?.slug}`}>
                   <h3
                     className="
-                      mb-2 font-semibold transition-colors hover:text-yellow-600
+                      mb-2 font-semibold transition-colors hover:text-amber-600
                       text-sm sm:text-base md:text-lg
                       truncate sm:line-clamp-2 break-words
                     "
@@ -335,7 +336,7 @@ export default function CartPage() {
                 <div className="mb-3 sm:mb-4 flex items-center gap-2">
                   {typeof discount === 'number' && discount < price ? (
                     <>
-                      <span className="text-lg sm:text-2xl font-bold text-yellow-600">
+                      <span className="text-lg sm:text-2xl font-bold text-amber-600">
                         {formatGHS(discount)}
                       </span>
                       <span className="text-xs sm:text-sm text-gray-400 line-through">
@@ -449,14 +450,14 @@ export default function CartPage() {
           <div className="mb-6 border-t pt-4">
             <div className="flex items-center justify-between gap-2 text-lg sm:text-xl font-bold">
               <span>Grand Total:</span>
-              <span className="text-yellow-600 whitespace-nowrap text-right">
+              <span className="text-amber-600 whitespace-nowrap text-right">
                 {formatGHS(grandSubtotal)}
               </span>
             </div>
           </div>
 
           <Link href="/checkout" className="block">
-            <Button className="w-full bg-yellow-500 text-black hover:bg-yellow-600">
+            <Button className="w-full bg-amber-600 text-white hover:bg-amber-700">
               Proceed to Checkout
             </Button>
           </Link>

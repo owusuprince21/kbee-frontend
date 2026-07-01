@@ -33,7 +33,8 @@ function extractUserIdentity(u: unknown) {
 function buildFirebaseHeaders(user: unknown): HeadersInit {
   const { uid, email, name, photo } = extractUserIdentity(user);
   const h: Record<string, string> = {};
-  if (uid != null) h['X-Firebase-UID'] = String(uid);
+  const firebaseUid = uid == null ? '' : String(uid);
+  if (firebaseUid && !firebaseUid.startsWith('customer:')) h['X-Firebase-UID'] = firebaseUid;
   if (email) h['X-User-Email'] = String(email);
   if (name) h['X-User-Name'] = String(name);
   if (photo) h['X-User-Photo'] = String(photo);
@@ -88,6 +89,18 @@ const toNum = (n: unknown) => {
   const v = Number(n);
   return Number.isFinite(v) ? v : 0;
 };
+
+function unwrapList<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (!payload || typeof payload !== 'object') return [];
+  const rec = payload as AnyRec;
+  if (Array.isArray(rec.results)) return rec.results as T[];
+  if (Array.isArray(rec.data)) return rec.data as T[];
+  if (rec.data && typeof rec.data === 'object' && Array.isArray((rec.data as AnyRec).results)) {
+    return (rec.data as AnyRec).results as T[];
+  }
+  return [];
+}
 
 function normalizeCart(api: any): CartDTO {
   if (!api) return { items: [] };
@@ -253,13 +266,11 @@ export default function CheckoutPage() {
     (async () => {
       try {
         const res = await http<Address[] | Paginated<Address>>('/api/addresses/', { headers });
-        const list = Array.isArray((res as Paginated<Address>)?.results)
-          ? (res as Paginated<Address>).results
-          : (res as Address[]);
-        setAddresses(Array.isArray(list) ? list : []);
+        const list = unwrapList<Address>(res);
+        setAddresses(list);
         const def =
-          (Array.isArray(list) ? list : []).find(a => a.is_default) ||
-          (Array.isArray(list) ? list[0] : undefined);
+          list.find(a => a.is_default) ||
+          list[0];
         if (def) {
           setAddressId(def.id);
           setPhone(def.phone || '');
@@ -618,9 +629,9 @@ export default function CheckoutPage() {
       <main className="min-h-[70vh] bg-white px-4 py-16">
         <section className="mx-auto flex max-w-md flex-col items-center text-center">
           <div className="relative mb-5 h-16 w-16">
-            <div className="absolute inset-0 rounded-full border-4 border-yellow-400/25" />
-            <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-yellow-500" />
-            <div className="absolute inset-4 rounded-full bg-yellow-500" />
+            <div className="absolute inset-0 rounded-full border-4 border-amber-500/25" />
+            <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-amber-600" />
+            <div className="absolute inset-4 rounded-full bg-amber-600" />
           </div>
           <h1 className="text-2xl font-semibold text-gray-900">Processing payment</h1>
           <p className="mt-3 text-sm leading-6 text-gray-600">{paymentMessage}</p>
@@ -841,7 +852,7 @@ export default function CheckoutPage() {
             <button
               aria-selected={payMethod === 'momo'}
               className={`rounded-md border px-3 py-2 text-sm font-medium ${
-                payMethod === 'momo' ? 'border-yellow-500 bg-yellow-50 text-yellow-800' : 'border-gray-200 hover:bg-gray-50'
+                payMethod === 'momo' ? 'border-amber-600 bg-slate-50 text-amber-800' : 'border-gray-200 hover:bg-gray-50'
               }`}
               onClick={() => switchPaymentMethod('momo')}
               role="tab"
@@ -852,7 +863,7 @@ export default function CheckoutPage() {
             <button
               aria-selected={payMethod === 'card'}
               className={`rounded-md border px-3 py-2 text-sm font-medium ${
-                payMethod === 'card' ? 'border-yellow-500 bg-yellow-50 text-yellow-800' : 'border-gray-200 hover:bg-gray-50'
+                payMethod === 'card' ? 'border-amber-600 bg-slate-50 text-amber-800' : 'border-gray-200 hover:bg-gray-50'
               }`}
               onClick={() => switchPaymentMethod('card')}
               role="tab"
@@ -872,11 +883,11 @@ export default function CheckoutPage() {
               </div>
 
               <Button
-                className="w-full bg-yellow-500 text-black hover:bg-yellow-600"
+                className="w-full bg-amber-600 text-white hover:bg-amber-700"
                 onClick={handlePayMoMo}
                 disabled={momoBtnDisabled}
               >
-                {initializing || paymentLocked ? 'Opening Payment...' : verifying ? 'Waiting for approval...' : 'Proceed to Pay'}
+                {initializing || paymentLocked ? 'Opening Payment§§§§§...' : verifying ? 'Waiting for approval...' : 'Proceed to Pay'}
               </Button>
             </>
           ) : (
@@ -903,7 +914,7 @@ export default function CheckoutPage() {
               </div>
 
               <Button
-                className="w-full bg-yellow-500 text-black hover:bg-yellow-600"
+                className="w-full bg-amber-600 text-white hover:bg-amber-700"
                 onClick={handlePayCard}
                 disabled={paymentLocked || initializing || verifying || !cart || !cart.items?.length || !shippingTownId}
               >

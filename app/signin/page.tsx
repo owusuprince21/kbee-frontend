@@ -4,37 +4,28 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import {
-  setPersistence,
-  browserLocalPersistence,
   signInWithPopup,
-  signInWithRedirect,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { auth, provider } from '@/lib/firebase';
+import { auth, configurePrivateAuthPersistence, provider, toSafeUser } from '@/lib/firebase';
 import { useAuthStore } from '@/store/authStore';
+import { http } from '@/lib/api/http';
+import type { User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-
-function isSafariOrIOS() {
-  if (typeof navigator === 'undefined') return false;
-  const ua = navigator.userAgent;
-  const isIOS = /iP(hone|ad|od)/i.test(ua);
-  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
-  return isIOS || isSafari;
-}
 
 function mapFirebaseError(code?: string) {
   switch (code) {
     case 'auth/popup-closed-by-user':
       return 'Sign-in was cancelled.';
     case 'auth/popup-blocked':
-      return 'Popup was blocked. Switching to redirect…';
+      return 'Popup was blocked. Please allow popups for this site and try again.';
     case 'auth/unauthorized-domain':
       return 'This domain is not authorized in Firebase Auth.';
     case 'auth/operation-not-supported-in-this-environment':
     case 'auth/cookie-not-found':
-      return 'This browser blocks popups/cookies. Using redirect…';
+      return 'This browser blocked Google sign-in. Please allow popups/cookies for this site.';
     case 'auth/network-request-failed':
       return 'Network error. Check your connection.';
     case 'auth/operation-not-allowed':
@@ -42,6 +33,15 @@ function mapFirebaseError(code?: string) {
     default:
       return 'Failed to sign in. Please try again.';
   }
+}
+
+function userFromCustomer(customer: any): User {
+  return {
+    id: `customer:${customer.id}`,
+    email: customer.email || '',
+    displayName: customer.full_name || '',
+    photoURL: customer.photo_url || '',
+  };
 }
 
 export default function SignInPage() {
@@ -53,78 +53,63 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
 
-  // Finish sign-in whenever Firebase auth state changes (works for redirect & popup)
+  // Finish sign-in whenever Firebase auth state changes.
   useEffect(() => {
-    // Make sure we persist across refreshes
-    setPersistence(auth, browserLocalPersistence).catch(() => { /* ignore */ });
+    let unsub: (() => void) | undefined;
+    let active = true;
 
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      try {
-        if (!u) {
-          setInitializing(false);
-          return;
-        }
-        const token = await u.getIdToken();
-        setUser({
-          id: u.uid,
-          email: u.email || '',
-          displayName: u.displayName || '',
-          photoURL: u.photoURL || '',
+    configurePrivateAuthPersistence()
+      .catch(() => {})
+      .finally(() => {
+        if (!active) return;
+        unsub = onAuthStateChanged(auth, async (u) => {
+          try {
+            if (!u) {
+              setInitializing(false);
+              return;
+            }
+            setUser(toSafeUser(u));
+            setToken(null);
+            setInitializing(false);
+          } catch (err) {
+            // If something goes wrong here, still allow the UI
+            setInitializing(false);
+          }
         });
-        setToken(token);
-        toast.success('Signed in successfully!');
-        router.replace(nextUrl);
-      } catch (err) {
-        // If something goes wrong here, still allow the UI
-        setInitializing(false);
-      }
-    });
+      });
 
     // Optional: encourage account picker each time
     try {
       provider.setCustomParameters({ prompt: 'select_account' });
     } catch {}
 
-    return () => unsub();
+    return () => {
+      active = false;
+      unsub?.();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const signInWithPopupOrRedirect = async () => {
+  const signInWithGoogle = async () => {
     setLoading(true);
-    const preferRedirect = isSafariOrIOS();
 
     try {
-      if (preferRedirect) {
-        toast.message('Redirecting to Google…');
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-      // Try popup first on desktop Chrome/Edge/Firefox
-      await signInWithPopup(auth, provider);
-      // onAuthStateChanged will handle the rest
+      const credential = await signInWithPopup(auth, provider);
+      const firebaseUser = credential.user;
+      const customer = await http('/api/customers/me/', {
+        method: 'PATCH',
+        body: {
+          email: firebaseUser.email || '',
+          full_name: firebaseUser.displayName || '',
+          photo_url: firebaseUser.photoURL || '',
+        },
+      });
+      setUser(userFromCustomer(customer));
+      setToken(null);
+      toast.success('Signed in successfully!');
+      router.replace(nextUrl);
     } catch (err: any) {
-      const msg = mapFirebaseError(err?.code);
-      // If popup fails (blocked), try redirect automatically
-      if (
-        err?.code === 'auth/popup-blocked' ||
-        err?.code === 'auth/operation-not-supported-in-this-environment' ||
-        err?.code === 'auth/cookie-not-found'
-      ) {
-        toast.message(msg);
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signInWithRedirectOnly = async () => {
-    setLoading(true);
-    try {
-      toast.message('Redirecting to Google…');
-      await signInWithRedirect(auth, provider);
+      toast.error(mapFirebaseError(err?.code));
     } finally {
       setLoading(false);
     }
@@ -134,9 +119,9 @@ export default function SignInPage() {
     <div className="grid min-h-[80dvh] place-items-center px-4 py-10 sm:py-16">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto h-12 w-12 overflow-hidden rounded-full ring-1 ring-yellow-500/30">
+          <div className="mx-auto h-12 w-12 overflow-hidden rounded-full ring-1 ring-slate-500/30">
             <Image
-              src="/logo.png"
+              src="/logo.jpeg"
               alt="Kbee Computers"
               width={48}
               height={48}
@@ -150,7 +135,7 @@ export default function SignInPage() {
 
         <CardContent className="space-y-4">
           <Button
-            onClick={signInWithPopupOrRedirect}
+            onClick={signInWithGoogle}
             disabled={loading || initializing}
             aria-busy={loading || initializing}
             className="w-full border border-gray-300 bg-white text-gray-900 hover:bg-gray-50"
@@ -163,16 +148,6 @@ export default function SignInPage() {
             </svg>
             {loading || initializing ? 'Preparing…' : 'Continue with Google'}
           </Button>
-
-          {/* Optional explicit redirect-only button for stubborn browsers */}
-          {/* <Button
-            variant="outline"
-            onClick={signInWithRedirectOnly}
-            disabled={loading || initializing}
-            className="w-full"
-          >
-            Use Redirect Instead
-          </Button> */}
 
           <p className="text-center text-xs sm:text-sm text-gray-600">
             By signing in, you agree to our{' '}

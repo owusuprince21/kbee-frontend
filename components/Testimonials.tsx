@@ -123,7 +123,7 @@ function Stars({ value }: { value: number }) {
         return (
           <span key={i} className="relative inline-block h-4 w-4 text-gray-300">
             ★
-            <span className="absolute inset-0 overflow-hidden text-yellow-500" style={{ width: `${fill * 100}%` }}>
+            <span className="absolute inset-0 overflow-hidden text-amber-600" style={{ width: `${fill * 100}%` }}>
               ★
             </span>
           </span>
@@ -262,7 +262,7 @@ export default function Testimonials({ items }: { items: Testimonial[] }) {
                   <Stars value={t.rating} />
 
                   {productName ? (
-                    <p className="mt-2 truncate rounded-md bg-yellow-50 px-2 py-1 text-xs font-semibold text-yellow-800">
+                    <p className="mt-2 truncate rounded-md bg-slate-50 px-2 py-1 text-xs font-semibold text-amber-800">
                       Review from {productName}
                     </p>
                   ) : null}
@@ -278,7 +278,7 @@ export default function Testimonials({ items }: { items: Testimonial[] }) {
                   </div>
 
                   {href ? (
-                    <span className="mt-2 inline-block text-xs font-medium text-yellow-700 opacity-100 transition group-hover:text-yellow-800 sm:opacity-0 sm:group-hover:opacity-100">
+                    <span className="mt-2 inline-block text-xs font-medium text-amber-700 opacity-100 transition group-hover:text-amber-800 sm:opacity-0 sm:group-hover:opacity-100">
                       View product &amp; reviews →
                     </span>
                   ) : null}
@@ -291,7 +291,7 @@ export default function Testimonials({ items }: { items: Testimonial[] }) {
                 <Link
                   key={key}
                   href={href}
-                  className="block rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500"
+                  className="block rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
                   aria-label={`Read ${name}'s full review${productName ? ` for ${productName}` : ''} on product page`}
                   title="Go to product details"
                 >

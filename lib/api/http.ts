@@ -12,7 +12,7 @@ export class ApiError extends Error {
   }
 }
 
-const RAW_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
+const RAW_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 const BASE_URL = RAW_BASE.replace(/\/+$/, ''); // strip trailing slash
 const GUEST_ID_KEY = 'kbee_guest_id';
 
@@ -29,38 +29,37 @@ function getGuestId() {
   return guestId;
 }
 
-function readAuthState() {
-  if (typeof window === 'undefined') return { user: null as any, token: '' };
+async function getFirebaseIdentity() {
+  if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem('auth-storage');
-    if (!raw) return { user: null as any, token: '' };
-    const parsed = JSON.parse(raw);
+    const { auth } = await import('@/lib/firebase');
+    const user = auth.currentUser;
+    if (!user) return null;
     return {
-      user: parsed?.state?.user ?? null,
-      token: parsed?.state?.token ?? '',
+      token: await user.getIdToken(),
+      uid: user.uid,
+      email: user.email || '',
+      name: user.displayName || '',
+      photo: user.photoURL || '',
     };
   } catch {
-    return { user: null as any, token: '' };
+    return null;
   }
 }
 
-function applyIdentityHeaders(headers: Headers) {
-  const { user, token } = readAuthState();
-  const storedToken = token || (typeof window !== 'undefined' ? window.localStorage.getItem('authToken') || '' : '');
-  const uid = user?.uid ?? user?.id ?? user?.firebase_uid ?? null;
-  const name = user?.displayName ?? user?.full_name ?? user?.name ?? '';
-  const photo = user?.photoURL ?? user?.photo_url ?? '';
+async function applyIdentityHeaders(headers: Headers) {
+  const identity = await getFirebaseIdentity();
 
-  if (storedToken && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${storedToken}`);
+  if (identity?.token) {
+    headers.set('Authorization', `Bearer ${identity.token}`);
   }
-  if (uid && !headers.has('X-Firebase-UID')) headers.set('X-Firebase-UID', String(uid));
-  if (user?.email && !headers.has('X-User-Email')) headers.set('X-User-Email', String(user.email));
-  if (name && !headers.has('X-User-Name')) headers.set('X-User-Name', String(name));
-  if (photo && !headers.has('X-User-Photo')) headers.set('X-User-Photo', String(photo));
+  if (identity?.uid) headers.set('X-Firebase-UID', String(identity.uid));
+  if (identity?.email) headers.set('X-User-Email', String(identity.email));
+  if (identity?.name) headers.set('X-User-Name', String(identity.name));
+  if (identity?.photo) headers.set('X-User-Photo', String(identity.photo));
 
   const guestId = getGuestId();
-  if (guestId && !headers.has('X-Guest-ID')) headers.set('X-Guest-ID', guestId);
+  if (guestId) headers.set('X-Guest-ID', guestId);
 }
 
 /** Join base + path and keep Django API routes under /api exactly once. */
@@ -117,7 +116,7 @@ export async function http<T = any>(
     else if (Array.isArray(headers)) headers.forEach(([k, v]) => h.set(k, v));
     else Object.entries(headers).forEach(([k, v]) => h.set(k, v as string));
   }
-  applyIdentityHeaders(h);
+  await applyIdentityHeaders(h);
 
   let res: Response;
   try {
@@ -126,6 +125,7 @@ export async function http<T = any>(
       headers: h,
       body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
       cache: 'no-store',
+      credentials: 'include',
       // mode: 'cors', // default; add explicitly if you like
     });
   } catch (err: any) {

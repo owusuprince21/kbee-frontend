@@ -1,45 +1,75 @@
 // app/about/page.tsx
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle2, ShieldHalf, Headphones, Truck, Clock3, Star } from "lucide-react";
+import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "About — KBee Computers",
+export const metadata: Metadata = createPageMetadata({
+  title: "About",
   description:
     "KBee Computers is a Ghana-based technology retailer and service partner providing dependable computers, accessories and support since September 2014.",
-};
+  path: "/about",
+});
 
 export default function AboutPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white to-slate-50">
+    <main className="min-h-screen bg-white">
       {/* Hero */}
-      <section className="relative">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(80%_60%_at_50%_-10%,rgba(234,179,8,0.12),transparent_60%)]" />
-        <div className="container mx-auto max-w-6xl px-4 py-14 sm:py-20">
-          <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700 ring-1 ring-yellow-100">
-            <span className="h-2 w-2 rounded-full bg-yellow-500" />
+      <section className="border-b bg-slate-950 text-white">
+        <div className="container mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <div>
+          <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-50">
+            <span className="h-2 w-2 rounded-full bg-amber-600" />
             Serving customers since September 2014
           </p>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl md:text-5xl">
-            About <span className="text-yellow-600">KBee Computers</span>
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
+              Practical technology, honest guidance, dependable support.
           </h1>
-          <p className="mt-4 max-w-2xl text-slate-600">
-            We help people and businesses choose, buy, and maintain the right technology—reliably and affordably.
+            <p className="mt-4 max-w-2xl leading-7 text-slate-300">
+              KBee Computers helps students, homes, and businesses choose, buy, and maintain the right technology reliably and affordably.
             From quality laptops and components to friendly after-sales support, we keep your work and learning moving.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/shop"
-              className="inline-flex items-center rounded-full bg-yellow-500 px-5 py-2.5 text-sm font-semibold text-black shadow-sm transition hover:bg-yellow-600"
+                className="inline-flex items-center rounded-md bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700"
             >
               Shop now
             </Link>
             <Link
               href="/contact"
-              className="inline-flex items-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="inline-flex items-center rounded-md border border-white/15 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
             >
               Contact us
             </Link>
+          </div>
+          </div>
+          <div className="relative min-h-[280px] overflow-hidden rounded-xl border border-white/10 bg-white/5">
+            <Image
+              src="/hero.png"
+              alt="KBee Computers product showcase"
+              fill
+              sizes="(max-width: 1024px) 100vw, 45vw"
+              className="object-cover"
+              priority
+            />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/85 to-transparent p-5">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <div className="text-lg font-bold text-white">2014</div>
+                  <div className="text-xs text-slate-300">Founded</div>
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-white">Ghana</div>
+                  <div className="text-xs text-slate-300">Nationwide</div>
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-white">Support</div>
+                  <div className="text-xs text-slate-300">After sale</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -57,7 +87,7 @@ export default function AboutPage() {
       {/* Our Story */}
       <section className="border-t bg-white">
         <div className="container mx-auto max-w-6xl px-4 py-12">
-          <div className="grid gap-8 md:grid-cols-2 md:items-center">
+          <div className="grid gap-8 md:grid-cols-[1fr_0.85fr] md:items-center">
             <div>
               <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Our story</h2>
               <p className="mt-3 text-slate-600">
@@ -70,7 +100,7 @@ export default function AboutPage() {
                 and we stand by every sale with setup guidance and after-sales care.
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-6">
               <ul className="space-y-4">
                 <TimelineItem year="2014" title="KBee Computers launched">
                   Opened doors in September and started serving our first customers.
@@ -132,36 +162,36 @@ export default function AboutPage() {
       {/* Call to action */}
       <section className="border-t bg-white">
         <div className="container mx-auto max-w-6xl px-4 py-12">
-          <div className="grid items-center gap-6 rounded-2xl border border-slate-200 bg-gradient-to-r from-yellow-50 to-amber-50 p-6 sm:p-8 md:grid-cols-2">
+          <div className="grid items-center gap-6 rounded-xl border border-slate-200 bg-slate-950 p-6 text-white sm:p-8 md:grid-cols-2">
             <div>
-              <h3 className="text-xl font-semibold text-slate-900 sm:text-2xl">Need help choosing a device?</h3>
-              <p className="mt-2 text-slate-600">
+              <h3 className="text-xl font-semibold sm:text-2xl">Need help choosing a device?</h3>
+              <p className="mt-2 text-slate-300">
                 Tell us how you’ll use it—school, business, or creative work—and we’ll suggest the right options.
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link
                   href="/contact"
-                  className="inline-flex items-center rounded-lg bg-yellow-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-yellow-600"
+                  className="inline-flex items-center rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700"
                 >
                   Talk to us
                 </Link>
                 <Link
                   href="/shop"
-                  className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  className="inline-flex items-center rounded-lg border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15"
                 >
                   Browse products
                 </Link>
               </div>
             </div>
-            <ul className="grid gap-3 text-sm text-slate-700">
+            <ul className="grid gap-3 text-sm text-slate-200">
               <li className="flex items-center gap-2">
-                <ShieldHalf className="h-4 w-4 text-yellow-600" /> Genuine items
+                <ShieldHalf className="h-4 w-4 text-amber-600" /> Genuine items
               </li>
               <li className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-yellow-600" /> Convenient delivery
+                <Truck className="h-4 w-4 text-amber-600" /> Convenient delivery
               </li>
               <li className="flex items-center gap-2">
-                <Headphones className="h-4 w-4 text-yellow-600" /> After-sales support
+                <Headphones className="h-4 w-4 text-amber-600" /> After-sales support
               </li>
             </ul>
           </div>
@@ -175,7 +205,7 @@ export default function AboutPage() {
 function Fact({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
   return (
     <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4">
-      <div className="mt-0.5 rounded-full bg-yellow-50 p-2 text-yellow-700 ring-1 ring-yellow-100">
+      <div className="mt-0.5 rounded-full bg-slate-50 p-2 text-amber-700 ring-1 ring-amber-50">
         {icon}
       </div>
       <div>
@@ -189,7 +219,7 @@ function Fact({ icon, title, subtitle }: { icon: React.ReactNode; title: string;
 function Service({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700 ring-1 ring-yellow-100">
+      <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-50">
         {icon}
         {title}
       </div>
@@ -202,7 +232,7 @@ function Reason({ icon, title, children }: { icon: React.ReactNode; title: strin
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
       <div className="mb-2 flex items-center gap-2 text-slate-900">
-        <span className="rounded-full bg-yellow-50 p-2 text-yellow-700 ring-1 ring-yellow-100">{icon}</span>
+        <span className="rounded-full bg-slate-50 p-2 text-amber-700 ring-1 ring-amber-50">{icon}</span>
         <span className="text-sm font-semibold">{title}</span>
       </div>
       <p className="text-sm text-slate-600">{children}</p>
@@ -213,7 +243,7 @@ function Reason({ icon, title, children }: { icon: React.ReactNode; title: strin
 function TimelineItem({ year, title, children }: { year: string; title: string; children: React.ReactNode }) {
   return (
     <li className="relative pl-6">
-      <div className="absolute left-0 top-1.5 h-3 w-3 rounded-full bg-yellow-600 ring-4 ring-yellow-100" />
+      <div className="absolute left-0 top-1.5 h-3 w-3 rounded-full bg-amber-600 ring-4 ring-amber-50" />
       <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{year}</div>
       <div className="text-sm font-semibold text-slate-900">{title}</div>
       <p className="mt-1 text-sm text-slate-600">{children}</p>

@@ -118,7 +118,7 @@ export default function HeroCarousel({ products }: HeroCarouselProps) {
                       {formatGHS(price)}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xl font-bold text-yellow-400 sm:text-2xl md:text-4xl">
+                      <span className="text-xl font-bold text-amber-500 sm:text-2xl md:text-4xl">
                         {formatGHS(discount!)}
                       </span>
                       {percent > 0 && (
@@ -129,7 +129,7 @@ export default function HeroCarousel({ products }: HeroCarouselProps) {
                     </div>
                   </>
                 ) : (
-                  <span className="text-xl font-bold text-yellow-400 sm:text-2xl md:text-4xl">
+                  <span className="text-xl font-bold text-amber-500 sm:text-2xl md:text-4xl">
                     {formatGHS(price)}
                   </span>
                 )}
@@ -137,7 +137,7 @@ export default function HeroCarousel({ products }: HeroCarouselProps) {
 
               <Button
                 asChild
-                className="mt-3 h-9 px-4 text-xs bg-yellow-500 text-black hover:bg-yellow-600 sm:mt-4 sm:h-10 sm:px-6 sm:text-sm md:mt-6 md:h-12 md:px-8 md:text-lg"
+                className="mt-3 h-9 px-4 text-xs bg-amber-600 text-white hover:bg-amber-700 sm:mt-4 sm:h-10 sm:px-6 sm:text-sm md:mt-6 md:h-12 md:px-8 md:text-lg"
               >
                 <Link href={productHref} prefetch>
                   Shop Now
@@ -169,7 +169,7 @@ export default function HeroCarousel({ products }: HeroCarouselProps) {
             key={index}
             onClick={() => setCurrentIndex(index)}
             className={`h-1.5 w-1.5 rounded-full transition-all ${
-              index === currentIndex ? 'w-5 bg-yellow-500' : 'bg-white/50 hover:bg-white/70'
+              index === currentIndex ? 'w-5 bg-amber-600' : 'bg-white/50 hover:bg-white/70'
             }`}
             aria-label={`Go to slide ${index + 1}`}
           />

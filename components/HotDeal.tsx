@@ -120,6 +120,7 @@ export default function HotDeal({
                   src={safeImage}
                   alt={productTitle || 'Hot deal product'}
                   fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-contain"
                   priority
                   unoptimized

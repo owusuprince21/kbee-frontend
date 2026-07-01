@@ -70,6 +70,7 @@ export default function HotDealBanners({ categories = [] }: { categories?: Banne
                     src={image}
                     alt={label}
                     fill
+                    sizes="(max-width: 768px) 100vw, 25vw"
                     className="object-contain"
                     priority={index === 0}
                   />

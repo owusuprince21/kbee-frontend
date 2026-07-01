@@ -1,32 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { http, type Paginated } from '@/lib/api/http';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-/* ---------- identity helpers ---------- */
-type AnyRec = Record<string, any>;
-function extractUserIdentity(u: unknown) {
-  const anyU = (u || {}) as AnyRec;
-  const uid = anyU.uid ?? anyU.id ?? anyU.firebase_uid ?? null;
-  const email = anyU.email ?? null;
-  const name = anyU.displayName ?? anyU.full_name ?? anyU.name ?? null;
-  const photo = anyU.photoURL ?? anyU.photo_url ?? null;
-  return { uid, email, name, photo };
-}
-function buildFirebaseHeaders(user: unknown): HeadersInit {
-  const { uid, email, name, photo } = extractUserIdentity(user);
-  const h: Record<string, string> = {};
-  if (uid != null) h['X-Firebase-UID'] = String(uid);
-  if (email) h['X-User-Email'] = String(email);
-  if (name) h['X-User-Name'] = String(name);
-  if (photo) h['X-User-Photo'] = String(photo);
-  return h;
-}
 
 /* ---------- types ---------- */
 type OrderItem = {
@@ -49,6 +30,12 @@ type Order = {
   created_at?: string | null;
   items?: OrderItem[];
 };
+type OrdersResult = {
+  orders: Order[];
+  nextUrl: string | null;
+  prevUrl: string | null;
+};
+type AnyRec = Record<string, any>;
 
 /* ---------- utils ---------- */
 const toNum = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
@@ -70,12 +57,12 @@ const statusBadgeCls = (s?: string) => {
   const map: Record<string, string> = {
     pending: 'bg-gray-200 text-gray-800',
     unpaid: 'bg-gray-200 text-gray-800',
-    packaged: 'bg-amber-100 text-amber-800',
+    packaged: 'bg-slate-100 text-slate-800',
     processing: 'bg-indigo-100 text-indigo-700',
     paid: 'bg-emerald-100 text-emerald-700',
     completed: 'bg-emerald-100 text-emerald-700',
-    shipped: 'bg-blue-100 text-blue-700',
-    'in-transit': 'bg-blue-100 text-blue-700',
+    shipped: 'bg-amber-100 text-amber-700',
+    'in-transit': 'bg-amber-100 text-amber-700',
     delivered: 'bg-green-100 text-green-700',
     cancelled: 'bg-rose-100 text-rose-700',
     failed: 'bg-rose-100 text-rose-700',
@@ -85,62 +72,56 @@ const statusBadgeCls = (s?: string) => {
   return map[k] || 'bg-gray-100 text-gray-700';
 };
 
+function unwrapList<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (!payload || typeof payload !== 'object') return [];
+  const rec = payload as AnyRec;
+  if (Array.isArray(rec.results)) return rec.results as T[];
+  if (Array.isArray(rec.data)) return rec.data as T[];
+  if (rec.data && typeof rec.data === 'object' && Array.isArray((rec.data as AnyRec).results)) {
+    return (rec.data as AnyRec).results as T[];
+  }
+  return [];
+}
+
+async function fetchOrders(url?: string): Promise<OrdersResult> {
+  const res = await http<Order[] | Paginated<Order>>(url || '/api/orders/');
+  const list = unwrapList<Order>(res);
+
+  return {
+    orders: list,
+    nextUrl: Array.isArray(res) ? null : (res as Paginated<Order>).next ?? null,
+    prevUrl: Array.isArray(res) ? null : (res as Paginated<Order>).previous ?? null,
+  };
+}
+
 /* ---------- page ---------- */
 export default function OrdersPage() {
-  const { user } = useAuthStore();
-
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
-
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { user, authReady } = useAuthStore();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<
     'all' | 'pending' | 'processing' | 'paid' | 'failed' | 'cancelled' | 'packaged' | 'shipped' | 'delivered'
   >('all');
-  const [nextUrl, setNextUrl] = useState<string | null>(null);
-  const [prevUrl, setPrevUrl] = useState<string | null>(null);
+  const [pageUrl, setPageUrl] = useState<string | null>(null);
 
-  const fetchOrders = async (url?: string) => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const headers = buildFirebaseHeaders(user);
-      const res = await http<Order[] | Paginated<Order>>(url || '/api/orders/', { headers });
-      const list = Array.isArray((res as Paginated<Order>)?.results)
-        ? (res as Paginated<Order>).results
-        : (res as Order[]);
-      setOrders(Array.isArray(list) ? list : []);
-      if (Array.isArray(res)) {
-        setNextUrl(null);
-        setPrevUrl(null);
-      } else {
-        setNextUrl((res as Paginated<Order>).next ?? null);
-        setPrevUrl((res as Paginated<Order>).previous ?? null);
-      }
-    } catch {
-      setOrders([]);
-      setNextUrl(null);
-      setPrevUrl(null);
-      toast.error('Could not load orders.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const ordersQuery = useQuery<OrdersResult>({
+    queryKey: ['orders', user?.id, pageUrl],
+    queryFn: () => fetchOrders(pageUrl || undefined),
+    enabled: authReady && Boolean(user),
+    refetchInterval: (query) => {
+      const orders = query.state.data?.orders ?? [];
+      const needsRefresh = orders.some(o =>
+        ['pending', 'processing', 'unpaid', 'packaged'].includes(o.status?.toLowerCase?.() || '')
+      );
+      return needsRefresh ? 8000 : false;
+    },
+    staleTime: 15_000,
+  });
 
-  useEffect(() => {
-    if (hydrated && user) void fetchOrders();
-  }, [hydrated, user]);
-
-  useEffect(() => {
-    const needsRefresh = orders.some(o =>
-      ['pending', 'processing', 'unpaid', 'packaged'].includes(o.status?.toLowerCase?.() || '')
-    );
-    if (!needsRefresh || !user) return;
-    const id = setInterval(() => fetchOrders(), 8000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders, user]);
+  const orders: Order[] = ordersQuery.data?.orders ?? [];
+  const nextUrl = ordersQuery.data?.nextUrl ?? null;
+  const prevUrl = ordersQuery.data?.prevUrl ?? null;
+  const loading = !authReady || ordersQuery.isLoading || ordersQuery.isFetching;
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -192,7 +173,9 @@ export default function OrdersPage() {
 
               <Button
                 variant="outline"
-                onClick={() => fetchOrders()}
+                onClick={() => {
+                  ordersQuery.refetch().catch(() => toast.error('Could not load orders.'));
+                }}
                 disabled={!user || loading}
                 className="w-full sm:w-auto"
               >
@@ -203,13 +186,26 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {hydrated && !user ? (
+      {authReady && !user ? (
         <div className="rounded border bg-white p-4 text-sm">
           <p className="mb-2">You need to sign in to view your orders.</p>
-          <Link href="/profile" className="text-indigo-600 underline">Go to profile</Link>
+          <Link href="/signin?next=%2Forders" className="text-indigo-600 underline">Sign in</Link>
         </div>
       ) : loading ? (
         <div className="rounded border bg-white p-4 text-sm text-gray-600">Loading…</div>
+      ) : ordersQuery.isError ? (
+        <div className="rounded border bg-white p-4 text-sm text-gray-600">
+          Could not load orders.{' '}
+          <button
+            type="button"
+            className="text-indigo-600 underline"
+            onClick={() => {
+              ordersQuery.refetch().catch(() => toast.error('Could not load orders.'));
+            }}
+          >
+            Try again
+          </button>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="rounded border bg-white p-4 text-sm text-gray-600">
           No orders found. <Link href="/shop" className="text-indigo-600 underline">Shop now</Link>.
@@ -294,10 +290,10 @@ export default function OrdersPage() {
 
       {(prevUrl || nextUrl) && (
         <div className="mt-6 flex items-center justify-between">
-          <Button variant="outline" disabled={!prevUrl} onClick={() => fetchOrders(prevUrl!)}>
+          <Button variant="outline" disabled={!prevUrl} onClick={() => setPageUrl(prevUrl)}>
             Previous
           </Button>
-          <Button variant="outline" disabled={!nextUrl} onClick={() => fetchOrders(nextUrl!)}>
+          <Button variant="outline" disabled={!nextUrl} onClick={() => setPageUrl(nextUrl)}>
             Next
           </Button>
         </div>

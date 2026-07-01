@@ -34,21 +34,21 @@ export default function Footer() {
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           <div>
-            <h3 className="text-xl font-bold mb-4 text-yellow-500">Kbee Computers</h3>
+            <h3 className="text-xl font-bold mb-4 text-slate-500">Kbee Computers</h3>
             <p className="text-gray-400 mb-4">
               Your trusted source for quality UK used and new laptops, accessories, and computer equipment.
             </p>
             <div className="flex gap-4">
-              <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+              <a href="#" className="text-gray-400 hover:text-slate-500 transition-colors">
                 <Facebook className="w-5 h-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+              <a href="#" className="text-gray-400 hover:text-slate-500 transition-colors">
                 <FaXTwitter className="w-5 h-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+              <a href="#" className="text-gray-400 hover:text-slate-500 transition-colors">
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+              <a href="#" className="text-gray-400 hover:text-slate-500 transition-colors">
                 <Linkedin className="w-5 h-5" />
               </a>
             </div>
@@ -58,32 +58,32 @@ export default function Footer() {
             <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
             <ul className="space-y-2">
               <li>
-                <Link href="/shop" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <Link href="/shop" className="text-gray-400 hover:text-slate-500 transition-colors">
                   Shop
                 </Link>
               </li>
               <li>
-                <Link href="/about" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <Link href="/about" className="text-gray-400 hover:text-slate-500 transition-colors">
                   About Us
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <Link href="/contact" className="text-gray-400 hover:text-slate-500 transition-colors">
                   Contact
                 </Link>
               </li>
               <li>
-                <Link href="/faq" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <Link href="/faq" className="text-gray-400 hover:text-slate-500 transition-colors">
                   FAQ
                 </Link>
               </li>
               <li>
-                <Link href="/policies/privacy" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <Link href="/policies/privacy" className="text-gray-400 hover:text-slate-500 transition-colors">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="/policies/returns" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <Link href="/policies/returns" className="text-gray-400 hover:text-slate-500 transition-colors">
                   Returns
                 </Link>
               </li>
@@ -95,7 +95,7 @@ export default function Footer() {
             <ul className="space-y-2">
               {categories.map((category) => (
                 <li key={category.slug}>
-                  <Link href={`/category/${category.slug}`} className="text-gray-400 hover:text-yellow-500 transition-colors">
+                  <Link href={`/category/${category.slug}`} className="text-gray-400 hover:text-slate-500 transition-colors">
                     {labelFromCategory(category)}
                   </Link>
                 </li>
@@ -129,7 +129,7 @@ export default function Footer() {
               href="https://owusu-portfolio-site.vercel.app/"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold text-yellow-500 transition-colors hover:text-yellow-400"
+              className="font-semibold text-slate-500 transition-colors hover:text-amber-500"
             >
               Prince Owusu
             </a>

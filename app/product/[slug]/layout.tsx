@@ -3,7 +3,7 @@ import { createPageMetadata } from '@/lib/seo';
 
 type ProductLayoutProps = {
   children: React.ReactNode;
-  params: Promise<{ slug: string }> | { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
@@ -26,7 +26,7 @@ async function fetchProduct(slug: string) {
 }
 
 export async function generateMetadata({ params }: ProductLayoutProps): Promise<Metadata> {
-  const resolvedParams = await Promise.resolve(params);
+  const resolvedParams = await params;
   const slug = decodeURIComponent(resolvedParams.slug || '');
   const product = slug ? await fetchProduct(slug) : null;
 

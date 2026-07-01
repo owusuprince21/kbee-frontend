@@ -9,7 +9,7 @@ export default function Newsletter() {
         <p className="mb-8 text-gray-300">Get the latest deals and product updates</p>
         <form className="mx-auto flex max-w-md gap-4">
           <Input type="email" placeholder="Enter your email" className="flex-1 bg-white text-black" />
-          <Button className="bg-yellow-500 px-8 text-black hover:bg-yellow-600">Subscribe</Button>
+          <Button className="bg-amber-600 px-8 text-white hover:bg-amber-700">Subscribe</Button>
         </form>
       </div>
     </section>

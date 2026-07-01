@@ -105,9 +105,9 @@ function CheckoutSuccessContent() {
       <main className="min-h-[70vh] bg-white px-4 py-16">
         <section className="mx-auto flex max-w-md flex-col items-center text-center">
           <div className="relative mb-5 h-16 w-16">
-            <div className="absolute inset-0 rounded-full border-4 border-yellow-400/25" />
-            <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-yellow-500" />
-            <div className="absolute inset-4 rounded-full bg-yellow-500" />
+            <div className="absolute inset-0 rounded-full border-4 border-amber-500/25" />
+            <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-amber-600" />
+            <div className="absolute inset-4 rounded-full bg-amber-600" />
           </div>
           <h1 className="text-2xl font-semibold text-gray-900">Confirming payment</h1>
           <p className="mt-3 text-sm leading-6 text-gray-600">
@@ -163,7 +163,7 @@ function CheckoutSuccessContent() {
         ) : null}
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Button asChild className="bg-yellow-500 text-black hover:bg-yellow-600">
+          <Button asChild className="bg-amber-600 text-white hover:bg-amber-700">
             <Link href="/">Go Home</Link>
           </Button>
           <Button asChild variant="outline">

@@ -111,7 +111,7 @@ export default function BrowseByCategory({ categories: categoriesProp }: { categ
                     </span>
                   )}
                 </div>
-                <h3 className="mt-3 text-center text-sm font-semibold text-slate-900 transition-colors group-hover:text-yellow-600">
+                <h3 className="mt-3 text-center text-sm font-semibold text-slate-900 transition-colors group-hover:text-amber-600">
                   {c.name}
                 </h3>
               </a>

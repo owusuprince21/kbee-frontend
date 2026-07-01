@@ -93,6 +93,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                         src={item.product.images?.[0]?.image || '/placeholder.jpg'}
                         alt={item.product.name}
                         fill
+                        sizes="80px"
                         className="object-cover"
                       />
                     </Link>
@@ -101,7 +102,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                       <Link
                         href={`/product/${item.product.slug}`}
                         onClick={onClose}
-                        className="line-clamp-2 font-semibold hover:text-yellow-600"
+                        className="line-clamp-2 font-semibold hover:text-amber-600"
                       >
                         {item.product.name}
                       </Link>
@@ -109,7 +110,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                       <div className="mt-1 flex items-center gap-2">
                         {hasDiscount ? (
                           <>
-                            <span className="font-bold text-yellow-600">
+                            <span className="font-bold text-amber-600">
                               {formatGHS(discount!)}
                             </span>
                             <span className="text-sm text-gray-400 line-through">
@@ -170,7 +171,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             <div className="mb-4 flex items-center justify-between text-lg font-bold">
               <span>Total</span>
               {/* 👇 Same value on server & initial client paint */}
-              <span className="text-yellow-600">
+              <span className="text-amber-600">
                 {mounted ? formatGHS(getTotal()) : formatGHS(0)}
               </span>
             </div>
@@ -182,7 +183,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                 </Button>
               </Link>
               <Link href="/checkout" className="flex-1" onClick={onClose}>
-                <Button className="w-full bg-yellow-500 text-black hover:bg-yellow-600">
+                <Button className="w-full bg-amber-600 text-white hover:bg-amber-700">
                   Checkout
                 </Button>
               </Link>

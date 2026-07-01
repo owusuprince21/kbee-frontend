@@ -23,7 +23,7 @@ export default function NotFound() {
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-32 -left-32 h-80 w-80 rounded-full bg-gradient-to-br from-indigo-200 to-purple-200 blur-3xl animate-blob" />
         <div className="absolute top-20 -right-32 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-200 to-cyan-200 blur-3xl animate-blob animation-delay-2000" />
-        <div className="absolute -bottom-32 left-1/3 h-80 w-80 rounded-full bg-gradient-to-br from-amber-200 to-pink-200 blur-3xl animate-blob animation-delay-4000" />
+        <div className="absolute -bottom-32 left-1/3 h-80 w-80 rounded-full bg-gradient-to-br from-slate-200 to-pink-200 blur-3xl animate-blob animation-delay-4000" />
 
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.04)_1px,transparent_1px)] bg-[size:28px_28px] opacity-40" />
       </div>

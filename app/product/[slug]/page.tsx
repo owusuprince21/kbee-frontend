@@ -131,7 +131,7 @@ function GalleryCarousel({
               onClick={() => onSelect(i)}
               className={[
                 'relative shrink-0 overflow-hidden rounded-xl ring-1 transition',
-                selected ? 'ring-yellow-500' : 'ring-black/10 hover:ring-yellow-300',
+                selected ? 'ring-amber-600' : 'ring-black/10 hover:ring-amber-300',
                 'h-14 w-14 sm:h-16 sm:w-16',
               ].join(' ')}
               aria-label={`Select image ${i + 1}`}
@@ -140,6 +140,7 @@ function GalleryCarousel({
                 src={src}
                 alt={`Thumb ${i + 1}`}
                 fill
+                sizes="(max-width: 640px) 56px, 64px"
                 className="object-contain bg-slate-50"
               />
             </button>
@@ -434,6 +435,7 @@ export default function ProductDetailPage() {
                 alt={product.name}
                 fill
                 priority
+                loading="eager"
                 className="object-contain"
                 sizes="(max-width:1024px) 100vw, 50vw"
               />
@@ -498,12 +500,12 @@ export default function ProductDetailPage() {
               {categoryName}
             </span>
             {product.is_new_arrival ? (
-              <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700">
+              <span className="rounded-full bg-amber-50 px-3 py-1 font-semibold text-amber-700">
                 New arrival
               </span>
             ) : null}
             {product.is_best_seller ? (
-              <span className="rounded-full bg-amber-50 px-3 py-1 font-semibold text-amber-800">
+              <span className="rounded-full bg-slate-50 px-3 py-1 font-semibold text-slate-800">
                 Best seller
               </span>
             ) : null}
@@ -518,7 +520,7 @@ export default function ProductDetailPage() {
             {hasDiscount ? (
               <div className="flex flex-col">
                 <span className="text-sm text-gray-400 line-through">{formatGHS(price)}</span>
-                <span className="text-3xl font-extrabold text-yellow-600">
+                <span className="text-3xl font-extrabold text-amber-600">
                   {formatGHS(discount!)}
                 </span>
               </div>
@@ -581,7 +583,7 @@ export default function ProductDetailPage() {
 
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Button
-                className="h-11 w-full rounded-xl bg-yellow-500 font-semibold text-black transition hover:bg-yellow-600"
+                className="h-11 w-full rounded-xl bg-amber-600 font-semibold text-white transition hover:bg-amber-700"
                 onClick={handleAddToCart}
                 disabled={!inStock || addToCart.isPending}
               >
@@ -611,7 +613,7 @@ export default function ProductDetailPage() {
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border bg-white p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                <Truck className="h-4 w-4 text-yellow-600" />
+                <Truck className="h-4 w-4 text-amber-600" />
                 Delivery
               </div>
               <p className="mt-2 text-xs leading-5 text-gray-600">
@@ -620,7 +622,7 @@ export default function ProductDetailPage() {
             </div>
             <div className="rounded-xl border bg-white p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                <CreditCard className="h-4 w-4 text-yellow-600" />
+                <CreditCard className="h-4 w-4 text-amber-600" />
                 Secure payment
               </div>
               <p className="mt-2 text-xs leading-5 text-gray-600">
@@ -629,7 +631,7 @@ export default function ProductDetailPage() {
             </div>
             <div className="rounded-xl border bg-white p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                <ShieldCheck className="h-4 w-4 text-yellow-600" />
+                <ShieldCheck className="h-4 w-4 text-amber-600" />
                 Checked item
               </div>
               <p className="mt-2 text-xs leading-5 text-gray-600">
@@ -638,7 +640,7 @@ export default function ProductDetailPage() {
             </div>
             <div className="rounded-xl border bg-white p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                <RotateCcw className="h-4 w-4 text-yellow-600" />
+                <RotateCcw className="h-4 w-4 text-amber-600" />
                 Support
               </div>
               <p className="mt-2 text-xs leading-5 text-gray-600">
@@ -650,7 +652,7 @@ export default function ProductDetailPage() {
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Button
               variant="outline"
-              className="h-11 w-full rounded-xl border-gray-300 font-semibold transition hover:border-yellow-500 hover:bg-yellow-50 hover:text-yellow-700"
+              className="h-11 w-full rounded-xl border-gray-300 font-semibold transition hover:border-amber-600 hover:bg-slate-50 hover:text-amber-700"
               onClick={() => {
                 setLightboxIndex(activeIndex);
                 setOpenLightbox(true);
@@ -684,7 +686,7 @@ export default function ProductDetailPage() {
                 <ul className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
                   {specLines.map((line, i) => (
                     <li key={i} className="flex gap-2 leading-5">
-                      <PackageCheck className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
+                      <PackageCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                       <span>{line}</span>
                     </li>
                   ))}
@@ -704,7 +706,7 @@ export default function ProductDetailPage() {
               <h2 className="text-xl font-bold text-gray-950">Related products</h2>
               <p className="mt-1 text-sm text-gray-600">More products from {brand}.</p>
             </div>
-            <Link href="/shop" className="text-sm font-semibold text-yellow-700 hover:text-yellow-800">
+            <Link href="/shop" className="text-sm font-semibold text-amber-700 hover:text-amber-800">
               View shop
             </Link>
           </div>
@@ -778,7 +780,7 @@ export default function ProductDetailPage() {
                   onClick={() => setLightboxIndex(i)}
                   className={[
                     'relative h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-1',
-                    i === lightboxIndex ? 'ring-yellow-500' : 'ring-black/10 hover:ring-yellow-300',
+                    i === lightboxIndex ? 'ring-amber-600' : 'ring-black/10 hover:ring-amber-300',
                   ].join(' ')}
                   aria-label={`Show image ${i + 1}`}
                 >
@@ -786,6 +788,7 @@ export default function ProductDetailPage() {
                     src={src}
                     alt={`Thumb ${i + 1}`}
                     fill
+                    sizes="56px"
                     className="object-contain bg-slate-50"
                   />
                 </button>

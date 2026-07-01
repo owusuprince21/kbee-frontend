@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 import { http, ApiError, type Paginated } from '@/lib/api/http';
 import { useAuthStore } from '@/store/authStore';
+import { auth, signOut } from '@/lib/firebase';
 
 /* -------------------------- helpers / identity -------------------------- */
 
@@ -42,7 +43,8 @@ function extractUserIdentity(u: unknown): {
 function buildFirebaseHeaders(user: unknown): HeadersInit {
   const { uid, email, name, photo } = extractUserIdentity(user);
   const h: Record<string, string> = {};
-  if (uid != null) h['X-Firebase-UID'] = String(uid);
+  const firebaseUid = uid == null ? '' : String(uid);
+  if (firebaseUid && !firebaseUid.startsWith('customer:')) h['X-Firebase-UID'] = firebaseUid;
   if (email) h['X-User-Email'] = email;
   if (name) h['X-User-Name'] = name;
   if (photo) h['X-User-Photo'] = photo;
@@ -117,12 +119,12 @@ const statusBadgeCls = (s?: string) => {
   const map: Record<string, string> = {
     pending:     'bg-gray-200 text-gray-800',
     unpaid:      'bg-gray-200 text-gray-800',
-    packaged:    'bg-amber-100 text-amber-800',
+    packaged:    'bg-slate-100 text-slate-800',
     processing:  'bg-indigo-100 text-indigo-700',
     paid:        'bg-emerald-100 text-emerald-700',
     completed:   'bg-emerald-100 text-emerald-700',
-    shipped:     'bg-blue-100 text-blue-700',
-    'in-transit':'bg-blue-100 text-blue-700',
+    shipped:     'bg-amber-100 text-amber-700',
+    'in-transit':'bg-amber-100 text-amber-700',
     delivered:   'bg-green-100 text-green-700',
     cancelled:   'bg-rose-100 text-rose-700',
     failed:      'bg-rose-100 text-rose-700',
@@ -132,11 +134,23 @@ const statusBadgeCls = (s?: string) => {
   return map[k] || 'bg-gray-100 text-gray-700';
 };
 
+function unwrapList<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (!payload || typeof payload !== 'object') return [];
+  const rec = payload as AnyRec;
+  if (Array.isArray(rec.results)) return rec.results as T[];
+  if (Array.isArray(rec.data)) return rec.data as T[];
+  if (rec.data && typeof rec.data === 'object' && Array.isArray((rec.data as AnyRec).results)) {
+    return (rec.data as AnyRec).results as T[];
+  }
+  return [];
+}
+
 /* --------------------------------- page --------------------------------- */
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout, hasHydrated, authReady } = useAuthStore();
   const me = useMemo(() => extractUserIdentity(user), [user]);
 
   const [tab, setTab] = useState<'orders' | 'addresses' | 'account'>('orders');
@@ -168,11 +182,11 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    if (!user) {
+    if (authReady && !user) {
       router.replace('/');
       router.refresh();
     }
-  }, [user, router]);
+  }, [authReady, user, router]);
 
   useEffect(() => {
     if (!user) return;
@@ -187,11 +201,9 @@ export default function ProfilePage() {
           `/api/orders/?page_size=50&ordering=-created_at`,
           { headers }
         );
-        const list = Array.isArray((res as Paginated<Order>)?.results)
-          ? (res as Paginated<Order>).results
-          : (res as Order[]);
+        const list = unwrapList<Order>(res);
         if (!cancelled) {
-          setOrders(Array.isArray(list) ? list : []);
+          setOrders(list);
           setOrdersAvailable(true);
         }
       } catch {
@@ -209,10 +221,8 @@ export default function ProfilePage() {
       try {
         setLoadingAddresses(true);
         const res = await http<Address[] | Paginated<Address>>(`/api/addresses/`, { headers });
-        const list = Array.isArray((res as Paginated<Address>)?.results)
-          ? (res as Paginated<Address>).results
-          : (res as Address[]);
-        if (!cancelled) setAddresses(Array.isArray(list) ? list : []);
+        const list = unwrapList<Address>(res);
+        if (!cancelled) setAddresses(list);
       } catch {
         if (!cancelled) setAddresses([]);
       } finally {
@@ -241,7 +251,7 @@ export default function ProfilePage() {
     return () => { cancelled = true; };
   }, [user, me.name, me.email, me.photo]);
 
-  if (!user) return null;
+  if (!hasHydrated || !authReady || !user) return null;
 
   /* ----------------------------- helpers ---------------------------- */
 
@@ -250,7 +260,9 @@ export default function ProfilePage() {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await http('/api/customers/logout/', { method: 'POST' }).catch(() => null);
+      await signOut(auth);
+      logout();
       toast.success('Logged out');
     } finally {
       router.replace('/');
@@ -365,10 +377,10 @@ export default function ProfilePage() {
             <img
               src={me.photo}
               alt={me.name || 'Profile photo'}
-              className="h-16 w-16 rounded-full object-cover ring-2 ring-yellow-400"
+              className="h-16 w-16 rounded-full object-cover ring-2 ring-amber-500"
             />
           ) : (
-            <div className="grid h-16 w-16 place-items-center rounded-full bg-gray-200 text-lg font-semibold text-gray-700 ring-2 ring-yellow-400">
+            <div className="grid h-16 w-16 place-items-center rounded-full bg-gray-200 text-lg font-semibold text-gray-700 ring-2 ring-amber-500">
               {initials(me.name)}
             </div>
           )}
@@ -406,14 +418,14 @@ export default function ProfilePage() {
             <div className="rounded-lg border bg-white p-6 text-center">
               <p className="mb-3 text-gray-600">Orders aren’t available yet. Check back soon.</p>
               <Link href="/shop">
-                <Button className="bg-yellow-500 text-black hover:bg-yellow-600">Go shopping</Button>
+                <Button className="bg-amber-600 text-white hover:bg-amber-700">Go shopping</Button>
               </Link>
             </div>
           ) : orders.length === 0 ? (
             <div className="rounded-lg border bg-white p-6 text-center">
               <p className="mb-3 text-gray-600">You haven’t placed any orders yet.</p>
               <Link href="/shop">
-                <Button className="bg-yellow-500 text-black hover:bg-yellow-600">Go shopping</Button>
+                <Button className="bg-amber-600 text-white hover:bg-amber-700">Go shopping</Button>
               </Link>
             </div>
           ) : (
@@ -688,7 +700,7 @@ function AddressesPanel(props: {
           <Button
             onClick={onAdd}
             disabled={adding}
-            className="w-full bg-yellow-500 text-black hover:bg-yellow-600"
+            className="w-full bg-amber-600 text-white hover:bg-amber-700"
           >
             {adding ? 'Adding…' : 'Add address'}
           </Button>
@@ -752,7 +764,7 @@ function AccountPanel(props: {
             <Button
               onClick={onSave}
               disabled={saving}
-              className="bg-yellow-500 text-black hover:bg-yellow-600"
+              className="bg-amber-600 text-white hover:bg-amber-700"
             >
               {saving ? 'Saving…' : 'Save changes'}
             </Button>
@@ -785,8 +797,8 @@ function AccountPanel(props: {
             Manage password / 2FA in your authentication provider.
           </p>
           <div className="mt-3">
-            <Link href="/reset-password">
-              <Button variant="outline">Reset password</Button>
+            <Link href="#">
+              <Button variant="outline" disabled>Reset password</Button>
             </Link>
           </div>
         </div>

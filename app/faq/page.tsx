@@ -162,19 +162,19 @@ export default function FAQPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white to-slate-50">
+    <main className="min-h-screen bg-white">
       {/* Hero */}
-      <section className="border-b bg-gradient-to-br from-yellow-50 via-white to-white">
+      <section className="border-b bg-slate-950 text-white">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:py-14">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
-            <span className="h-2 w-2 rounded-full bg-yellow-500" />
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">
+            <span className="h-2 w-2 rounded-full bg-amber-600" />
             KBee Computers — Since September 2014
           </div>
 
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
             Frequently Asked Questions
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600 sm:text-base">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
             Quick answers about orders, payments, shipping, warranty, and services.
           </p>
 
@@ -190,7 +190,7 @@ export default function FAQPage() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search: shipping, warranty, MoMo, Paystack…"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none ring-yellow-100 placeholder:text-slate-400 focus:border-yellow-400 focus:ring-4"
+                className="w-full rounded-xl border border-white/10 bg-white px-4 py-3 text-sm text-slate-900 outline-none ring-amber-50 placeholder:text-slate-400 focus:border-amber-500 focus:ring-4"
               />
               {q && (
                 <button
@@ -212,8 +212,8 @@ export default function FAQPage() {
                 onClick={() => setActiveCat(c)}
                 className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                   activeCat === c
-                    ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    ? 'border-amber-500 bg-amber-600 text-white'
+                    : 'border-white/15 bg-white/10 text-slate-200 hover:bg-white/15'
                 }`}
               >
                 {c}
@@ -230,7 +230,7 @@ export default function FAQPage() {
           <aside className="hidden lg:block">
             <nav
               aria-label="Categories"
-              className="sticky top-24 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+              className="sticky top-24 rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
             >
               <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Browse
@@ -243,9 +243,9 @@ export default function FAQPage() {
                       <a
                         href={`#${slugify(g.name)}`}
                         onClick={() => setActiveCat('All')}
-                        className="group flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-700 hover:bg-yellow-50 hover:text-slate-900"
+                        className="group flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                       >
-                        <Icon className="h-4 w-4 text-slate-400 group-hover:text-yellow-600" />
+                        <Icon className="h-4 w-4 text-slate-400 group-hover:text-amber-600" />
                         <span>{g.name}</span>
                       </a>
                     </li>
@@ -267,15 +267,15 @@ export default function FAQPage() {
                 return (
                   <div key={group.name} id={slugify(group.name)}>
                     <div className="mb-3 flex items-center gap-2">
-                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-yellow-100">
-                        <Icon className="h-3.5 w-3.5 text-yellow-700" />
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-50">
+                        <Icon className="h-3.5 w-3.5 text-amber-700" />
                       </span>
                       <h2 className="text-lg font-bold text-slate-900">
                         {group.name}
                       </h2>
                     </div>
 
-                    <div className="divide-y rounded-xl border bg-white">
+                    <div className="divide-y rounded-xl border bg-white shadow-sm">
                       {group.items.map((item, idx) => {
                         const id = item.id || `${slugify(group.name)}-${idx}`;
                         const isOpen = openId === id;
@@ -314,47 +314,47 @@ export default function FAQPage() {
 
           {/* Right: Help card / contact */}
           <aside className="space-y-6">
-            <div className="rounded-2xl border bg-white p-6 shadow-sm">
-              <h3 className="text-base font-semibold text-slate-900">
+            <div className="rounded-xl border bg-slate-950 p-6 text-white shadow-sm">
+              <h3 className="text-base font-semibold text-white">
                 Can’t find your answer?
               </h3>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-slate-300">
                 Our team is happy to help with quotes, compatibility checks, or warranty questions.
               </p>
               <div className="mt-4 grid gap-2">
                 <Link
                   href="/contact"
-                  className="inline-flex items-center justify-center rounded-xl bg-yellow-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-yellow-600"
+                  className="inline-flex items-center justify-center rounded-md bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700"
                 >
                   Contact Support
                 </Link>
                 <Link
                   href="/policies/returns"
-                  className="inline-flex items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  className="inline-flex items-center justify-center rounded-md border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15"
                 >
                   Returns & Warranty Policy
                 </Link>
               </div>
-              <p className="mt-4 text-xs text-slate-500">
+              <p className="mt-4 text-xs text-slate-400">
                 Business hours: Mon–Sat, 9:00–18:00 GMT
               </p>
             </div>
 
-            <div className="rounded-2xl border bg-white p-6 shadow-sm">
+            <div className="rounded-xl border bg-white p-6 shadow-sm">
               <h3 className="text-base font-semibold text-slate-900">Quick Links</h3>
               <ul className="mt-3 space-y-2 text-sm">
                 <li>
-                  <Link href="/shop" className="text-yellow-600 hover:underline">
+                  <Link href="/shop" className="text-amber-600 hover:underline">
                     Shop All Products
                   </Link>
                 </li>
                 <li>
-                  <Link href="/orders" className="text-yellow-600 hover:underline">
+                  <Link href="/orders" className="text-amber-600 hover:underline">
                     Track Your Orders
                   </Link>
                 </li>
                 <li>
-                  <Link href="/about" className="text-yellow-600 hover:underline">
+                  <Link href="/about" className="text-amber-600 hover:underline">
                     About KBee Computers
                   </Link>
                 </li>

@@ -200,6 +200,7 @@ export default function CountdownBanner() {
                 src={deal.imageSrc}
                 alt={deal.headline}
                 fill
+                sizes="(max-width: 768px) 100vw, 50vw"
                 className="object-contain"
                 priority
               />
@@ -223,7 +224,7 @@ export default function CountdownBanner() {
               <Link href={finished ? '/shop' : deal.href} className="inline-block">
                 <Button
                   disabled={finished}
-                  className="mt-5 rounded-full bg-yellow-500 px-6 py-4 font-bold text-black shadow-sm transition hover:bg-yellow-600 hover:shadow-md disabled:bg-gray-400 disabled:text-white"
+                  className="mt-5 rounded-full bg-amber-600 px-6 py-4 font-bold text-white shadow-sm transition hover:bg-amber-700 hover:shadow-md disabled:bg-gray-400 disabled:text-white"
                 >
                   {finished ? 'Offer Ended' : deal.ctaText}
                 </Button>

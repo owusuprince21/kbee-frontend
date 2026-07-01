@@ -155,7 +155,7 @@ export default function SearchDialog({ open, onOpenChange }: Props) {
                         onClick={() => onOpenChange(false)}
                       >
                         <div className="relative h-12 w-12 overflow-hidden rounded-lg bg-gray-100 sm:h-16 sm:w-16">
-                          <Image src={cover} alt={p.name} fill className="object-contain" />
+                          <Image src={cover} alt={p.name} fill sizes="(max-width: 640px) 48px, 64px" className="object-contain" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[15px] font-semibold text-slate-900 sm:text-[17px]">

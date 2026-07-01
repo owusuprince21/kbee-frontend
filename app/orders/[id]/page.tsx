@@ -22,7 +22,8 @@ function extractUserIdentity(u: unknown) {
 function buildFirebaseHeaders(user: unknown): HeadersInit {
   const { uid, email, name, photo } = extractUserIdentity(user);
   const h: Record<string, string> = {};
-  if (uid != null) h['X-Firebase-UID'] = String(uid);
+  const firebaseUid = uid == null ? '' : String(uid);
+  if (firebaseUid && !firebaseUid.startsWith('customer:')) h['X-Firebase-UID'] = firebaseUid;
   if (email) h['X-User-Email'] = String(email);
   if (name) h['X-User-Name'] = String(name);
   if (photo) h['X-User-Photo'] = String(photo);
@@ -71,7 +72,7 @@ const money = (n: unknown, ccy?: string | null) =>
   `${ccy || 'GHS'} ${toNum(n).toFixed(2)}`;
 const fmtDate = (s?: string | null) =>
   !s ? '—' : new Date(s).toLocaleString();
-const RAW_API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
+const RAW_API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 const API_BASE = RAW_API_BASE.replace(/\/+$/, '').replace(/\/api$/, '');
 
 const trackingSteps = [
@@ -123,8 +124,8 @@ const statusBadgeClass = (status?: string | null) => {
     unpaid: 'bg-gray-100 text-gray-700 ring-gray-200',
     processing: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
     paid: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
-    packaged: 'bg-amber-50 text-amber-800 ring-amber-100',
-    shipped: 'bg-blue-50 text-blue-700 ring-blue-100',
+    packaged: 'bg-slate-50 text-slate-800 ring-slate-100',
+    shipped: 'bg-amber-50 text-amber-700 ring-amber-100',
     delivered: 'bg-green-50 text-green-700 ring-green-100',
     cancelled: 'bg-rose-50 text-rose-700 ring-rose-100',
     failed: 'bg-rose-50 text-rose-700 ring-rose-100',
@@ -298,11 +299,11 @@ export default function OrderDetailPage() {
                 const waiting = currentRank < index;
                 const completeClass = isDelivered
                   ? 'bg-green-600 text-white ring-green-100'
-                  : 'bg-yellow-500 text-black ring-yellow-100';
+                  : 'bg-amber-600 text-white ring-amber-50';
                 const connectorClass = currentRank > index
                   ? isDelivered
                     ? 'bg-green-600'
-                    : 'bg-yellow-500'
+                    : 'bg-amber-600'
                   : 'bg-gray-200';
 
                 return (
@@ -337,7 +338,7 @@ export default function OrderDetailPage() {
                       </div>
                       <p className="mt-1 text-xs leading-5 text-gray-500">{step.description}</p>
                       {current ? (
-                        <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800">
+                        <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-xs font-medium text-amber-800">
                           <Clock3 className="h-3.5 w-3.5" />
                           Current step
                         </div>
@@ -376,7 +377,7 @@ export default function OrderDetailPage() {
           <Button
             type="button"
             onClick={() => loadOrder()}
-            className="bg-yellow-500 text-black hover:bg-yellow-600"
+            className="bg-amber-600 text-white hover:bg-amber-700"
           >
             Refresh
           </Button>

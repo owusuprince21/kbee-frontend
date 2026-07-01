@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Heart, ShoppingCart } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { formatGHS } from '@/lib/currencyformat';
 import { addRecentlyViewedShallow } from '@/lib/recentlyViewed';
-import { useAddToCartMutation, useAddToWishlistMutation } from '@/lib/api/commerce';
+import { useAddToCartMutation } from '@/lib/api/commerce';
 import { ApiError } from '@/lib/api/http';
 
 interface ProductCardProps {
@@ -46,7 +46,6 @@ function getApiMessage(err: unknown, fallback: string) {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const addToCart = useAddToCartMutation();
-  const addToWishlist = useAddToWishlistMutation();
   const slugOrId = product.slug || String(product.id);
   const href = `/product/${slugOrId}`;
   const inStock =
@@ -95,7 +94,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         {/* Info */}
         <div className="p-4">
-          <h3 className="mb-1 line-clamp-2 text-sm font-semibold text-gray-900 group-hover:text-yellow-600">
+          <h3 className="mb-1 line-clamp-2 text-sm font-semibold text-gray-900 group-hover:text-amber-600">
             {product.name}
           </h3>
 
@@ -105,7 +104,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 <span className="block text-xs text-gray-400 line-through">
                   {formatGHS(price)}
                 </span>
-                <span className="text-lg font-bold text-yellow-600">
+                <span className="text-lg font-bold text-amber-600">
                   {formatGHS(discount!)}
                 </span>
               </>
@@ -128,9 +127,9 @@ export default function ProductCard({ product }: ProductCardProps) {
               className="
                 h-9 w-full rounded-xl font-semibold
                 border-gray-300
-                hover:bg-yellow-50
-                hover:border-yellow-500
-                hover:text-yellow-700
+                hover:bg-slate-50
+                hover:border-amber-600
+                hover:text-amber-700
                 transition
               "
             >
@@ -139,7 +138,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </Link>
 
           <Button
-            className="h-9 w-full rounded-xl bg-yellow-500 font-semibold text-black transition hover:bg-yellow-600"
+            className="h-9 w-full rounded-xl bg-amber-600 font-semibold text-white transition hover:bg-amber-700"
             disabled={!inStock || addToCart.isPending}
             onClick={async () => {
               if (!inStock) return;
@@ -155,23 +154,6 @@ export default function ProductCard({ product }: ProductCardProps) {
             {inStock ? 'Add' : 'Sold'}
           </Button>
         </div>
-        <Button
-          variant="ghost"
-          className="mt-2 h-8 w-full rounded-xl text-xs text-gray-600 hover:text-red-600"
-          disabled={!inStock || addToWishlist.isPending}
-          onClick={async () => {
-            if (!inStock) return;
-            try {
-              await addToWishlist.mutateAsync(product.id);
-              toast.success('Saved to wishlist.');
-            } catch (err) {
-              toast.error(getApiMessage(err, 'Could not save item.'));
-            }
-          }}
-        >
-          <Heart className="mr-2 h-4 w-4" />
-          {inStock ? 'Wishlist' : 'Unavailable'}
-        </Button>
       </div>
     </div>
   );

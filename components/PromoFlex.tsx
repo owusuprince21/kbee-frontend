@@ -156,7 +156,7 @@ export default function PromoFlex({
                   </h3>
 
                   <a href={promoHref(p)}>
-                    <Button className="mt-4 w-max rounded-full bg-yellow-500 px-5 font-bold text-black shadow-sm transition hover:bg-yellow-600 hover:shadow-md">
+                    <Button className="mt-4 w-max rounded-full bg-amber-600 px-5 font-bold text-white shadow-sm transition hover:bg-amber-700 hover:shadow-md">
                       Shop Now
                     </Button>
                   </a>
@@ -174,6 +174,7 @@ export default function PromoFlex({
                     src={p.image}
                     alt={`${p.name} promo`}
                     fill
+                    sizes="(max-width: 768px) 45vw, 25vw"
                     className="object-contain translate-x-4 sm:translate-x-6 md:translate-x-8"
                     priority={false}
                   />

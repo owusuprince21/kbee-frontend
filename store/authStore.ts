@@ -1,31 +1,28 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { User } from '@/lib/types';
 
 interface AuthState {
   user: User | null;
   token: string | null;
+  hasHydrated: boolean;
+  authReady: boolean;
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
+  setHasHydrated: (hasHydrated: boolean) => void;
+  setAuthReady: (authReady: boolean) => void;
   logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      token: null,
-      setUser: (user) => set({ user }),
-      setToken: (token) => {
-        if (token) localStorage.setItem('authToken', token);
-        else localStorage.removeItem('authToken');
-        set({ token });
-      },
-      logout: () => {
-        localStorage.removeItem('authToken');
-        set({ user: null, token: null });
-      },
-    }),
-    { name: 'auth-storage' }
-  )
+  (set) => ({
+    user: null,
+    token: null,
+    hasHydrated: true,
+    authReady: false,
+    setUser: (user) => set({ user }),
+    setToken: (token) => set({ token }),
+    setHasHydrated: (hasHydrated) => set({ hasHydrated }),
+    setAuthReady: (authReady) => set({ authReady }),
+    logout: () => set({ user: null, token: null }),
+  })
 );

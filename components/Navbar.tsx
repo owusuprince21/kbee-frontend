@@ -91,9 +91,9 @@ export default function Navbar() {
             {/* Logo + Brand */}
             <div className="min-w-0 shrink-0">
               <Link href="/" className="flex items-center gap-2 md:gap-3">
-                <span className="relative h-7 w-7 overflow-hidden rounded-full ring-1 ring-yellow-500/30 md:h-9 md:w-9 lg:h-10 lg:w-10">
+                <span className="relative h-7 w-7 overflow-hidden rounded-full ring-1 ring-slate-500/30 md:h-9 md:w-9 lg:h-10 lg:w-10">
                   <Image
-                    src="/logo.png"
+                    src="/logo.jpeg"
                     alt="Kbee Computers logo"
                     fill
                     sizes="(max-width:768px) 28px, (max-width:1024px) 36px, 40px"
@@ -173,7 +173,7 @@ export default function Navbar() {
                 <Link href="/cart" className="relative rounded-full p-1.5 transition-colors hover:bg-gray-100 md:p-2" aria-label="Cart">
                   <ShoppingCart className="h-5 w-5 md:h-6 md:w-6" />
                   {cartCount > 0 ? (
-                    <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-yellow-500 px-1 text-[10px] font-bold text-black">
+                    <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-amber-600 px-1 text-[10px] font-bold text-white">
                       {cartCount}
                     </span>
                   ) : null}

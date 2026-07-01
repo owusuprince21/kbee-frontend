@@ -28,7 +28,8 @@ function extractUserIdentity(u: unknown) {
 function buildFirebaseHeaders(user: unknown): HeadersInit {
   const { uid, email, name, photo } = extractUserIdentity(user);
   const h: Record<string, string> = {};
-  if (uid != null) h['X-Firebase-UID'] = String(uid);
+  const firebaseUid = uid == null ? '' : String(uid);
+  if (firebaseUid && !firebaseUid.startsWith('customer:')) h['X-Firebase-UID'] = firebaseUid;
   if (email) h['X-User-Email'] = String(email);
   if (name) h['X-User-Name'] = String(name);
   if (photo) h['X-User-Photo'] = String(photo);
@@ -231,14 +232,14 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                       onClick={onClose}
                       className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded"
                     >
-                      <Image src={img} alt={p?.name || 'Product'} fill className="object-cover" />
+                      <Image src={img} alt={p?.name || 'Product'} fill sizes="80px" className="object-cover" />
                     </Link>
 
                     <div className="min-w-0 flex-1">
                       <Link
                         href={`/product/${p?.slug}`}
                         onClick={onClose}
-                        className="line-clamp-2 font-semibold hover:text-yellow-600"
+                        className="line-clamp-2 font-semibold hover:text-amber-600"
                       >
                         {p?.name || 'Item'}
                       </Link>
@@ -246,7 +247,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                       <div className="mt-1 flex items-center gap-2">
                         {typeof discount === 'number' && discount < price ? (
                           <>
-                            <span className="font-bold text-yellow-600">
+                            <span className="font-bold text-amber-600">
                               {formatGHS(discount)}
                             </span>
                             <span className="text-sm text-gray-400 line-through">
@@ -313,12 +314,12 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
           <div className="border-t p-5">
             <div className="mb-4 flex items-center justify-between text-lg font-bold">
               <span>Subtotal:</span>
-              <span className="text-yellow-600">{formatGHS(subtotal)}</span>
+              <span className="text-amber-600">{formatGHS(subtotal)}</span>
             </div>
 
             <div className="flex gap-2">
               <Link href="/cart" className="flex-1" onClick={onClose}>
-                <Button className="w-full bg-yellow-500 text-black hover:bg-yellow-600">
+                <Button className="w-full bg-amber-600 text-white hover:bg-amber-700">
                   View Cart
                 </Button>
               </Link>

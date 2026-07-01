@@ -2,12 +2,12 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Heart, ShoppingCart, Eye } from 'lucide-react';
+import { ShoppingCart, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { formatGHS } from '@/lib/currencyformat';
-import { useAddToCartMutation, useAddToWishlistMutation } from '@/lib/api/commerce';
+import { useAddToCartMutation } from '@/lib/api/commerce';
 import { ApiError } from '@/lib/api/http';
 
 type Img = { id?: number; image: string; is_primary?: boolean };
@@ -56,7 +56,6 @@ export default function ProductCardCol({
   product: Product;
 }) {
   const addToCart = useAddToCartMutation();
-  const addToWishlist = useAddToWishlistMutation();
   const img =
     normalizeUrl(product.main_image_url) ||
     normalizeUrl(product.main_image) ||
@@ -114,7 +113,7 @@ export default function ProductCardCol({
               </span>
             ) : null}
             {brand ? (
-              <span className="rounded-full bg-yellow-50 px-2.5 py-1 text-[11px] font-semibold text-yellow-800">
+              <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
                 {brand}
               </span>
             ) : null}
@@ -127,7 +126,7 @@ export default function ProductCardCol({
 
           <Link href={href}>
             <h3
-              className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-gray-950 transition group-hover:text-yellow-700 sm:text-base"
+              className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-gray-950 transition group-hover:text-amber-700 sm:text-base"
               title={product.name}
             >
               {product.name}
@@ -140,7 +139,7 @@ export default function ProductCardCol({
                 <div className="text-xs text-gray-400 line-through">
                   {formatGHS(price)}
                 </div>
-                <div className="mt-1 text-lg font-extrabold text-yellow-600">
+                <div className="mt-1 text-lg font-extrabold text-amber-600">
                   {formatGHS(d)}
                 </div>
               </>
@@ -161,11 +160,11 @@ export default function ProductCardCol({
             <p className="mt-2 text-xs font-medium text-gray-500">{stockQty} in stock</p>
           ) : null}
 
-          <div className="mt-auto grid grid-cols-1 gap-2 pt-4 sm:grid-cols-[1fr_1fr_auto]">
+          <div className="mt-auto grid grid-cols-1 gap-2 pt-4 sm:grid-cols-2">
             <Link href={href}>
               <Button
                 variant="outline"
-                className="h-10 w-full rounded-lg border-gray-300 font-semibold transition hover:border-yellow-500 hover:bg-yellow-50 hover:text-yellow-700"
+                className="h-10 w-full rounded-lg border-gray-300 font-semibold transition hover:border-amber-600 hover:bg-slate-50 hover:text-amber-700"
               >
                 <Eye className="mr-2 h-4 w-4" />
                 View
@@ -173,7 +172,7 @@ export default function ProductCardCol({
             </Link>
 
             <Button
-              className="h-10 w-full rounded-lg bg-yellow-500 font-semibold text-black transition hover:bg-yellow-600"
+              className="h-10 w-full rounded-lg bg-amber-600 font-semibold text-white transition hover:bg-amber-700"
               disabled={!inStock || addToCart.isPending}
               onClick={async () => {
                 if (!inStock) return;
@@ -187,25 +186,6 @@ export default function ProductCardCol({
             >
               <ShoppingCart className="mr-2 h-4 w-4" />
               {inStock ? 'Add to Cart' : 'Sold Out'}
-            </Button>
-
-            <Button
-              variant="outline"
-              size="icon"
-              className="hidden h-10 w-10 rounded-lg border-gray-300 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 sm:inline-flex"
-              disabled={!inStock || addToWishlist.isPending}
-              onClick={async () => {
-                if (!inStock) return;
-                try {
-                  await addToWishlist.mutateAsync(product.id);
-                  toast.success('Saved to wishlist.');
-                } catch (err) {
-                  toast.error(getApiMessage(err, 'Could not save item.'));
-                }
-              }}
-              aria-label="Add to wishlist"
-            >
-              <Heart className="h-4 w-4" />
             </Button>
           </div>
         </div>

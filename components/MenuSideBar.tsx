@@ -75,8 +75,8 @@ export default function MenuSidebar({ isOpen, onClose }: MenuSidebarProps) {
           <div className="border-b px-5 py-5">
             <div className="flex items-start justify-between gap-3">
               <Link href="/" onClick={onClose} className="flex min-w-0 items-center gap-3">
-                <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full ring-1 ring-yellow-500/30">
-                  <Image src="/logo.png" alt="Kbee Computers logo" fill sizes="40px" className="object-contain" />
+                <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full ring-1 ring-slate-500/30">
+                  <Image src="/logo.jpeg" alt="Kbee Computers logo" fill sizes="40px" className="object-contain" />
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-base font-bold text-gray-950">Kbee Computers</span>
@@ -103,13 +103,13 @@ export default function MenuSidebar({ isOpen, onClose }: MenuSidebarProps) {
                   key={item.name}
                   href={item.href}
                   onClick={onClose}
-                  className="group flex items-center justify-between rounded-lg px-3 py-3 text-sm font-medium text-gray-800 transition-colors hover:bg-yellow-50 hover:text-yellow-800"
+                  className="group flex items-center justify-between rounded-lg px-3 py-3 text-sm font-medium text-gray-800 transition-colors hover:bg-slate-50 hover:text-amber-800"
                 >
                   <span className="flex items-center gap-3">
-                    <item.icon className="h-5 w-5 text-gray-500 transition-colors group-hover:text-yellow-700" />
+                    <item.icon className="h-5 w-5 text-gray-500 transition-colors group-hover:text-amber-700" />
                     {item.name}
                   </span>
-                  <ChevronRight className="h-4 w-4 text-gray-300 transition-colors group-hover:text-yellow-700" />
+                  <ChevronRight className="h-4 w-4 text-gray-300 transition-colors group-hover:text-amber-700" />
                 </Link>
               ))}
             </div>

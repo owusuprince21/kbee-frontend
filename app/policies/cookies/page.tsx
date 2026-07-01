@@ -1,5 +1,7 @@
 // app/policies/cookies/page.tsx
 import Link from "next/link";
+import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/seo";
 import {
   Cookie as CookieIcon,
   Info,
@@ -17,11 +19,12 @@ const LAST_UPDATED: string = new Date().toLocaleDateString('en-US', {
 });
 
 
-export const metadata = {
-  title: "Cookie Policy | KBee Computers",
+export const metadata: Metadata = createPageMetadata({
+  title: "Cookie Policy",
   description:
     "Understand how KBee Computers uses cookies and similar technologies, and how you can control your preferences.",
-};
+  path: "/policies/cookies",
+});
 
 export default function CookiePolicyPage() {
   const jsonLd = {
@@ -60,10 +63,10 @@ export default function CookiePolicyPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-slate-50">
       {/* Hero */}
-      <section className="border-b bg-gradient-to-br from-yellow-50 via-white to-white">
+      <section className="border-b bg-gradient-to-br from-slate-50 via-white to-white">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:py-14">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
-            <span className="h-2 w-2 rounded-full bg-yellow-500" />
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-amber-700">
+            <span className="h-2 w-2 rounded-full bg-amber-600" />
             KBee Computers
           </div>
 
@@ -98,9 +101,9 @@ export default function CookiePolicyPage() {
                 <li key={href}>
                   <a
                     href={`#${href}`}
-                    className="group flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-700 hover:bg-yellow-50 hover:text-slate-900"
+                    className="group flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   >
-                    <Icon className="h-4 w-4 text-slate-400 group-hover:text-yellow-600" />
+                    <Icon className="h-4 w-4 text-slate-400 group-hover:text-amber-600" />
                     <span>{label}</span>
                   </a>
                 </li>
@@ -120,7 +123,7 @@ export default function CookiePolicyPage() {
               <a
                 key={href}
                 href={`#${href}`}
-                className="rounded-lg border bg-white px-3 py-2 text-center font-medium text-slate-700 hover:bg-yellow-50"
+                className="rounded-lg border bg-white px-3 py-2 text-center font-medium text-slate-700 hover:bg-slate-50"
               >
                 {label}
               </a>
@@ -131,11 +134,11 @@ export default function CookiePolicyPage() {
             {/* 1. Overview */}
             <section id="overview" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <CookieIcon className="h-5 w-5 text-yellow-600" />
+                <CookieIcon className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">1. Overview</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="prose prose-slate max-w-none prose-a:text-yellow-600">
+                <div className="prose prose-slate max-w-none prose-a:text-amber-600">
                   <p>
                     We use cookies and similar technologies to run our website, keep your cart and session working,
                     analyze performance, and personalize your experience. Some cookies are essential and cannot be
@@ -143,7 +146,7 @@ export default function CookiePolicyPage() {
                   </p>
                   <p className="text-sm">
                     For how we handle personal data more broadly, see our{" "}
-                    <Link href="/policies/privacy" className="text-yellow-600 hover:underline">
+                    <Link href="/policies/privacy" className="text-amber-600 hover:underline">
                       Privacy Policy
                     </Link>.
                   </p>
@@ -154,7 +157,7 @@ export default function CookiePolicyPage() {
             {/* 2. What Are Cookies */}
             <section id="what-are-cookies" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <Info className="h-5 w-5 text-yellow-600" />
+                <Info className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">2. What Are Cookies?</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -171,11 +174,11 @@ export default function CookiePolicyPage() {
             {/* 3. Types */}
             <section id="types" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <Database className="h-5 w-5 text-yellow-600" />
+                <Database className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">3. Types of Cookies We Use</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="prose prose-slate max-w-none prose-li:marker:text-yellow-500">
+                <div className="prose prose-slate max-w-none prose-li:marker:text-slate-500">
                   <ul>
                     <li>
                       <strong>Strictly Necessary (Essential):</strong> required for core functions like page navigation,
@@ -201,7 +204,7 @@ export default function CookiePolicyPage() {
             {/* 4. How we use + table */}
             <section id="how-we-use" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <FileCheck2 className="h-5 w-5 text-yellow-600" />
+                <FileCheck2 className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">4. How We Use Cookies</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -275,11 +278,11 @@ export default function CookiePolicyPage() {
             {/* 5. Manage preferences */}
             <section id="manage" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <SlidersHorizontal className="h-5 w-5 text-yellow-600" />
+                <SlidersHorizontal className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">5. Managing Your Cookie Preferences</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="prose prose-slate max-w-none prose-li:marker:text-yellow-500">
+                <div className="prose prose-slate max-w-none prose-li:marker:text-slate-500">
                   <p>You can control cookies in several ways:</p>
                   <ul>
                     <li>
@@ -299,7 +302,7 @@ export default function CookiePolicyPage() {
                     <button
                       type="button"
                       data-cm-open="preferences"
-                      className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm font-medium text-yellow-700 hover:bg-yellow-100"
+                      className="rounded-lg border border-amber-200 bg-slate-50 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50"
                       aria-label="Open cookie preferences"
                     >
                       Open Cookie Preferences
@@ -312,7 +315,7 @@ export default function CookiePolicyPage() {
             {/* 6. Third parties */}
             <section id="third-parties" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <Share2 className="h-5 w-5 text-yellow-600" />
+                <Share2 className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">6. Third-Party Cookies</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -330,7 +333,7 @@ export default function CookiePolicyPage() {
             {/* 7. Changes */}
             <section id="changes" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <Info className="h-5 w-5 text-yellow-600" />
+                <Info className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">7. Changes to This Cookie Policy</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -347,7 +350,7 @@ export default function CookiePolicyPage() {
             {/* 8. Contact */}
             <section id="contact" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <FileCheck2 className="h-5 w-5 text-yellow-600" />
+                <FileCheck2 className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">8. Contact Us</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -356,8 +359,8 @@ export default function CookiePolicyPage() {
                   <ul>
                     <li>
                       <strong>Email:</strong>{" "}
-                      <a href="mailto:hello@kbeecomputers.com" className="text-yellow-600 hover:underline">
-                        hello@kbeecomputers.com
+                      <a href="mailto:info@kbeecomputers.com" className="text-amber-600 hover:underline">
+                        info@kbeecomputers.com
                       </a>
                     </li>
                     <li>
@@ -369,7 +372,7 @@ export default function CookiePolicyPage() {
                   </ul>
                   <p className="mt-3 text-sm">
                     See also our{" "}
-                    <Link href="/policies/privacy" className="text-yellow-600 hover:underline">
+                    <Link href="/policies/privacy" className="text-amber-600 hover:underline">
                       Privacy Policy
                     </Link>
                     .
@@ -382,7 +385,7 @@ export default function CookiePolicyPage() {
             <div className="pt-2">
               <a
                 href="#"
-                className="inline-flex items-center gap-2 rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1.5 text-sm font-medium text-yellow-700 hover:bg-yellow-100"
+                className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-50"
                 aria-label="Back to top"
               >
                 ↑ Back to top

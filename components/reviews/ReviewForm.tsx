@@ -57,7 +57,8 @@ function extractUserIdentity(u: unknown) {
 function buildFirebaseHeaders(user: unknown): { headers: HeadersInit; uid: string | number | null } {
   const { uid, email, name, photo } = extractUserIdentity(user);
   const h: Record<string, string> = {};
-  if (uid != null) h['X-Firebase-UID'] = String(uid);
+  const firebaseUid = uid == null ? '' : String(uid);
+  if (firebaseUid && !firebaseUid.startsWith('customer:')) h['X-Firebase-UID'] = firebaseUid;
   if (email) h['X-User-Email'] = String(email);
   if (name) h['X-User-Name'] = String(name);
   if (photo) h['X-User-Photo'] = String(photo);
@@ -96,7 +97,7 @@ const RatingStar = ({ fill, size = 'h-4 w-4' }: { fill: number; size?: string })
   <span className={`relative inline-block ${size}`}>
     <Star className={`absolute inset-0 ${size} text-gray-300`} />
     <span className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
-      <Star className={`fill-yellow-400 text-yellow-400 ${size}`} />
+      <Star className={`fill-amber-500 text-amber-500 ${size}`} />
     </span>
   </span>
 );
@@ -187,7 +188,7 @@ export default function ReviewForm({ productId }: { productId: string | number }
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [numericProductId, identityKey]);
 
   const avg = useMemo(() => {
@@ -206,8 +207,7 @@ export default function ReviewForm({ productId }: { productId: string | number }
 
     try {
       setPosting(true);
-      // Optimistic add (instant UI)
-      const tempId = -Date.now(); // temporary negative id
+      const tempId = -Date.now(); 
       const optimistic: UiReview = {
         id: tempId,
         uid: uid ?? null,
@@ -220,14 +220,13 @@ export default function ReviewForm({ productId }: { productId: string | number }
       };
       setReviews((prev) => [optimistic, ...prev]);
 
-      // POST to API
+ 
       const created = await http<ApiReview>(`/api/reviews/`, {
         method: 'POST',
         headers,
         body: { product: numericProductId, rating: normalizedRating, comment: comment.trim() },
       });
 
-      // Replace optimistic with real one by reloading from server
       await fetchReviews();
       await fetchEligibility();
 
@@ -236,7 +235,6 @@ export default function ReviewForm({ productId }: { productId: string | number }
       setComment('');
       toast.success('Thanks for your review!');
     } catch (err: any) {
-      // rollback optimistic on error
       setReviews((prev) => prev.filter((r) => r.id >= 0));
       if (err instanceof ApiError) {
         const detail =
@@ -261,14 +259,14 @@ export default function ReviewForm({ productId }: { productId: string | number }
     try {
       setDeletingId(id);
       await http<void>(`/api/reviews/${id}/`, { method: 'DELETE', headers });
-      await fetchReviews(); // refresh from server to reflect truth
+      await fetchReviews(); 
       await fetchEligibility();
-      toast.success('Review deleted.');
+      toast.success('Review deleted successfully!');
     } catch (err: any) {
       if (err instanceof ApiError) {
         toast.error(err.data?.detail || `Delete failed (HTTP ${err.status}).`);
       } else {
-        toast.error('Could not delete review.');
+        toast.error('Could not delete review');
       }
     } finally {
       setDeletingId(null);

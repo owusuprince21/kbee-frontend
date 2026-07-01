@@ -27,7 +27,8 @@ function extractUserIdentity(u: unknown) {
 function buildFirebaseHeaders(user: unknown): HeadersInit {
   const { uid, email, name, photo } = extractUserIdentity(user);
   const h: Record<string, string> = {};
-  if (uid != null) h['X-Firebase-UID'] = String(uid);
+  const firebaseUid = uid == null ? '' : String(uid);
+  if (firebaseUid && !firebaseUid.startsWith('customer:')) h['X-Firebase-UID'] = firebaseUid;
   if (email) h['X-User-Email'] = String(email);
   if (name) h['X-User-Name'] = String(name);
   if (photo) h['X-User-Photo'] = String(photo);
@@ -188,7 +189,7 @@ export default function WishlistPage() {
         <h1 className="mb-4 text-3xl font-bold">Your Wishlist</h1>
         <p className="mb-6 text-gray-600">Your wishlist is empty</p>
         <Link href="/shop">
-          <Button className="bg-yellow-500 text-black hover:bg-yellow-600">
+          <Button className="bg-amber-600 text-white hover:bg-amber-700">
             Continue Shopping
           </Button>
         </Link>
@@ -259,7 +260,7 @@ export default function WishlistPage() {
               <div className="p-3">
                 <Link href={`/product/${p.slug}`}>
                   <h3
-                    className="mb-2 line-clamp-2 text-[13px] font-semibold leading-[1.25] pb-[1px] sm:text-sm hover:text-yellow-600"
+                    className="mb-2 line-clamp-2 text-[13px] font-semibold leading-[1.25] pb-[1px] sm:text-sm hover:text-amber-600"
                     title={p.name}
                   >
                     {p.name}
@@ -273,7 +274,7 @@ export default function WishlistPage() {
                       <span className="text-xs text-gray-400 line-through leading-none">
                         {formatGHS(price)}
                       </span>
-                      <span className="mt-1 text-lg font-bold text-yellow-600">
+                      <span className="mt-1 text-lg font-bold text-amber-600">
                         {formatGHS(discount)}
                       </span>
                     </div>
@@ -287,7 +288,7 @@ export default function WishlistPage() {
                 {p.is_in_stock && (
                   <Button
                     onClick={() => handleAddToCart(p)}
-                    className="h-9 w-full bg-yellow-500 text-sm text-black hover:bg-yellow-600"
+                    className="h-9 w-full bg-amber-600 text-sm text-white hover:bg-amber-700"
                     size="sm"
                   >
                     Add to Cart

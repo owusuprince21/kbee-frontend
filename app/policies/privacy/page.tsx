@@ -1,5 +1,7 @@
 // app/policies/privacy/page.tsx
 import Link from "next/link";
+import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/seo";
 import {
   Shield,
   Database,
@@ -19,11 +21,12 @@ const LAST_UPDATED: string = new Date().toLocaleDateString('en-US', {
 });
 
 
-export const metadata = {
-  title: "Privacy Policy | KBee Computers",
+export const metadata: Metadata = createPageMetadata({
+  title: "Privacy Policy",
   description:
     "Learn how KBee Computers collects, uses, and protects your personal data when you shop with us.",
-};
+  path: "/policies/privacy",
+});
 
 export default function PrivacyPolicyPage() {
   const jsonLd = {
@@ -59,12 +62,12 @@ export default function PrivacyPolicyPage() {
   ] as const;
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white to-slate-50">
+    <main className="min-h-screen bg-white">
       {/* Hero */}
-      <section className="border-b bg-gradient-to-br from-yellow-50 via-white to-white">
+      <section className="border-b bg-slate-950 text-white">
         <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:py-14">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
-            <span className="h-2 w-2 rounded-full bg-yellow-500" />
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">
+            <span className="h-2 w-2 rounded-full bg-amber-600" />
             KBee Computers
           </div>
 
@@ -72,12 +75,12 @@ export default function PrivacyPolicyPage() {
             Privacy Policy
           </h1>
 
-          <p className="mt-2 max-w-2xl text-sm text-slate-600 sm:text-base">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
             Your privacy matters to us. This policy explains what we collect,
             why we collect it, and the choices you have.
           </p>
 
-          <div className="mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600">
+          <div className="mt-4 inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
             Last updated: <span className="font-medium">{LAST_UPDATED}</span>
           </div>
@@ -100,9 +103,9 @@ export default function PrivacyPolicyPage() {
                 <li key={href}>
                   <a
                     href={`#${href}`}
-                    className="group flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-700 hover:bg-yellow-50 hover:text-slate-900"
+                    className="group flex items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-900"
                   >
-                    <Icon className="h-4 w-4 text-slate-400 group-hover:text-yellow-600" />
+                    <Icon className="h-4 w-4 text-slate-400 group-hover:text-amber-600" />
                     <span>{label}</span>
                   </a>
                 </li>
@@ -122,7 +125,7 @@ export default function PrivacyPolicyPage() {
               <a
                 key={href}
                 href={`#${href}`}
-                className="rounded-lg border bg-white px-3 py-2 text-center font-medium text-slate-700 hover:bg-yellow-50"
+                className="rounded-lg border bg-white px-3 py-2 text-center font-medium text-slate-700 hover:bg-slate-50"
               >
                 {label}
               </a>
@@ -134,18 +137,18 @@ export default function PrivacyPolicyPage() {
             {/* 1. Overview */}
             <section id="overview" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <Shield className="h-5 w-5 text-yellow-600" />
+                <Shield className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">1. Overview</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="prose prose-slate max-w-none prose-a:text-yellow-600 prose-strong:text-slate-900 prose-li:marker:text-yellow-500">
+                <div className="prose prose-slate max-w-none prose-a:text-amber-600 prose-strong:text-slate-900 prose-li:marker:text-slate-500">
                   <p>
                     KBee Computers (“we”, “us”, “our”) operates a retail and online
                     store for computers and accessories. This Privacy Policy
                     applies to our website, services, and customer support channels.
                     By using our services, you agree to the practices described here.
                   </p>
-                  <div className="not-prose mt-4 rounded-lg border-l-4 border-yellow-300 bg-yellow-50 p-3 text-sm text-slate-700">
+                  <div className="not-prose mt-4 rounded-lg border-l-4 border-amber-300 bg-slate-50 p-3 text-sm text-slate-700">
                     <p className="leading-relaxed">
                       <strong className="text-slate-900">Summary:</strong> We collect
                       personal data to deliver your orders, provide support, improve
@@ -160,11 +163,11 @@ export default function PrivacyPolicyPage() {
             {/* 2. Data We Collect */}
             <section id="data-we-collect" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <Database className="h-5 w-5 text-yellow-600" />
+                <Database className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">2. Data We Collect</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="prose prose-slate max-w-none prose-a:text-yellow-600 prose-li:marker:text-yellow-500">
+                <div className="prose prose-slate max-w-none prose-a:text-amber-600 prose-li:marker:text-slate-500">
                   <ul>
                     <li>
                       <strong>Account &amp; Identity:</strong> name, email, phone number,
@@ -195,11 +198,11 @@ export default function PrivacyPolicyPage() {
             {/* 3. How We Use Data */}
             <section id="how-we-use" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <FileCheck2 className="h-5 w-5 text-yellow-600" />
+                <FileCheck2 className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">3. How We Use Your Data</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="prose prose-slate max-w-none prose-li:marker:text-yellow-500">
+                <div className="prose prose-slate max-w-none prose-li:marker:text-slate-500">
                   <ul>
                     <li>Provide, operate, and improve our website and services.</li>
                     <li>Process and fulfill orders, returns, and warranties.</li>
@@ -219,7 +222,7 @@ export default function PrivacyPolicyPage() {
             {/* 4. Sharing & Payments */}
             <section id="sharing" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <Lock className="h-5 w-5 text-yellow-600" />
+                <Lock className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">4. Sharing &amp; Payments</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -230,7 +233,7 @@ export default function PrivacyPolicyPage() {
                     are bound by agreements to protect your information and use it
                     only for our instructions.
                   </p>
-                  <div className="not-prose mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm">
+                  <div className="not-prose mt-4 rounded-lg border border-amber-200 bg-slate-50 p-3 text-sm">
                     <p className="text-slate-800">
                       <strong>Payments:</strong> Transactions are processed by a
                       third-party provider (Paystack). They receive payment
@@ -249,7 +252,7 @@ export default function PrivacyPolicyPage() {
             {/* 5. Retention & Security */}
             <section id="retention-security" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <Info className="h-5 w-5 text-yellow-600" />
+                <Info className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">5. Data Retention &amp; Security</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -271,7 +274,7 @@ export default function PrivacyPolicyPage() {
             {/* 6. Cookies */}
             <section id="cookies" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <Cookie className="h-5 w-5 text-yellow-600" />
+                <Cookie className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">6. Cookies &amp; Similar Technologies</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -284,7 +287,7 @@ export default function PrivacyPolicyPage() {
                   </p>
                   <p className="mt-3 text-sm">
                     For more detail, see our{" "}
-                    <Link href="/policies/cookies" className="text-yellow-600 hover:underline">
+                    <Link href="/policies/cookies" className="text-amber-600 hover:underline">
                       Cookie Policy
                     </Link>
                     .
@@ -296,7 +299,7 @@ export default function PrivacyPolicyPage() {
             {/* 7. Your Rights */}
             <section id="rights" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <UserCheck className="h-5 w-5 text-yellow-600" />
+                <UserCheck className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">7. Your Privacy Rights</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -310,10 +313,10 @@ export default function PrivacyPolicyPage() {
                   <p className="mt-3">
                     To exercise any rights, contact us at{" "}
                     <a
-                      href="mailto:hello@kbeecomputers.com"
-                      className="text-yellow-600 hover:underline"
+                      href="mailto:info@kbeecomputers.com"
+                      className="text-amber-600 hover:underline"
                     >
-                      hello@kbeecomputers.com
+                      info@kbeecomputers.com
                     </a>
                     . We may need to verify your identity before responding.
                   </p>
@@ -324,7 +327,7 @@ export default function PrivacyPolicyPage() {
             {/* 8. International Transfers */}
             <section id="intl" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <Globe2 className="h-5 w-5 text-yellow-600" />
+                <Globe2 className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">8. International Data Transfers</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -341,7 +344,7 @@ export default function PrivacyPolicyPage() {
             {/* 9. Children */}
             <section id="children" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <Shield className="h-5 w-5 text-yellow-600" />
+                <Shield className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">9. Children’s Privacy</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -359,7 +362,7 @@ export default function PrivacyPolicyPage() {
             {/* 10. Changes */}
             <section id="changes" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <Info className="h-5 w-5 text-yellow-600" />
+                <Info className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">10. Changes to This Policy</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -376,7 +379,7 @@ export default function PrivacyPolicyPage() {
             {/* 11. Contact */}
             <section id="contact" className="scroll-mt-28">
               <header className="mb-3 flex items-center gap-2">
-                <FileCheck2 className="h-5 w-5 text-yellow-600" />
+                <FileCheck2 className="h-5 w-5 text-amber-600" />
                 <h2 className="text-xl font-bold text-slate-900">11. Contact Us</h2>
               </header>
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -386,10 +389,10 @@ export default function PrivacyPolicyPage() {
                     <li>
                       <strong>Email:</strong>{" "}
                       <a
-                        href="mailto:hello@kbeecomputers.com"
-                        className="text-yellow-600 hover:underline"
+                        href="mailto:info@kbeecomputers.com"
+                        className="text-amber-600 hover:underline"
                       >
-                        hello@kbeecomputers.com
+                        info@kbeecomputers.com
                       </a>
                     </li>
                     <li>
@@ -401,7 +404,7 @@ export default function PrivacyPolicyPage() {
                   </ul>
                   <p className="mt-3 text-sm">
                     You can also reach us via the{" "}
-                    <Link href="/contact" className="text-yellow-600 hover:underline">
+                    <Link href="/contact" className="text-amber-600 hover:underline">
                       Contact page
                     </Link>
                     .
@@ -414,7 +417,7 @@ export default function PrivacyPolicyPage() {
             <div className="pt-2">
               <a
                 href="#"
-                className="inline-flex items-center gap-2 rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1.5 text-sm font-medium text-yellow-700 hover:bg-yellow-100"
+                className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-50"
                 aria-label="Back to top"
               >
                 ↑ Back to top

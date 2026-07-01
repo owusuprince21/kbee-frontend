@@ -19,7 +19,26 @@ export const siteKeywords = [
   'Lenovo laptops Ghana',
 ];
 
-export const defaultOgImage = '/hero.png';
+export const defaultOgImage = '/og/home.png';
+
+const routeOgImages: Record<string, string> = {
+  '/': '/og/home.png',
+  '/shop': '/og/shop.png',
+  '/about': '/og/about.png',
+  '/contact': '/og/contact.png',
+  '/faq': '/og/faq.png',
+  '/cart': '/og/cart.png',
+  '/checkout': '/og/checkout.png',
+  '/checkout/success': '/og/checkout-success.png',
+  '/wishlist': '/og/wishlist.png',
+  '/orders': '/og/orders.png',
+  '/profile': '/og/profile.png',
+  '/signin': '/og/signin.png',
+  '/search': '/og/search.png',
+  '/policies/privacy': '/og/privacy.png',
+  '/policies/cookies': '/og/cookies.png',
+  '/policies/returns': '/og/returns.png',
+};
 
 export function absoluteUrl(path = '/') {
   if (/^https?:\/\//i.test(path)) return path;
@@ -30,11 +49,16 @@ export function seoTitle(title?: string) {
   return title ? `${title} | ${siteName}` : `${siteName} | Quality New & UK Used Laptops in Ghana`;
 }
 
+export function ogImageForPath(path = '/') {
+  const cleanPath = path.split('?')[0].replace(/\/$/, '') || '/';
+  return routeOgImages[cleanPath] || defaultOgImage;
+}
+
 export function createPageMetadata({
   title,
   description = siteDescription,
   path = '/',
-  image = defaultOgImage,
+  image,
   type = 'website',
   robots,
 }: {
@@ -46,6 +70,7 @@ export function createPageMetadata({
   robots?: Metadata['robots'];
 }): Metadata {
   const fullTitle = seoTitle(title);
+  const cardImage = image || ogImageForPath(path);
 
   return {
     title: fullTitle,
@@ -62,7 +87,7 @@ export function createPageMetadata({
       description,
       images: [
         {
-          url: image,
+          url: cardImage,
           width: 1200,
           height: 630,
           alt: siteName,
@@ -73,7 +98,7 @@ export function createPageMetadata({
       card: 'summary_large_image',
       title: fullTitle,
       description,
-      images: [image],
+      images: [cardImage],
     },
     robots,
   };

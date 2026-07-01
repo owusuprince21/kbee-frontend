@@ -19,7 +19,8 @@ function firebaseHeaders(): HeadersInit {
     u?.photoURL ?? u?.photo_url ?? null;
 
   const h: Record<string, string> = {};
-  if (uid) h['X-Firebase-UID'] = String(uid);
+  const firebaseUid = uid == null ? '' : String(uid);
+  if (firebaseUid && !firebaseUid.startsWith('customer:')) h['X-Firebase-UID'] = firebaseUid;
   if (email) h['X-User-Email'] = String(email);
   if (name) h['X-User-Name'] = String(name);
   if (photo) h['X-User-Photo'] = String(photo);

@@ -6,20 +6,14 @@ import ProductGrid from '@/components/ProductGrid';
 import { createPageMetadata } from '@/lib/seo';
 
 type PageProps = {
-  params: Promise<{ slug: string }> | { slug: string };
+  params: Promise<{ slug: string }>;
   searchParams: Promise<{
     page?: string;
     page_size?: string;
     ordering?: string;
     q?: string;
     brand?: string;
-  }> | {
-    page?: string;
-    page_size?: string;
-    ordering?: string;
-    q?: string;
-    brand?: string;
-  };
+  }>;
 };
 
 const API_BASE =
@@ -65,7 +59,7 @@ function titleize(value: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const resolvedParams = await Promise.resolve(params);
+  const resolvedParams = await params;
   const slug = decodeURIComponent(resolvedParams.slug || '');
 
   if (!slug || slug === 'undefined' || slug === 'null') {
@@ -102,8 +96,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function CategoryPage({ params, searchParams }: PageProps) {
-  const resolvedParams = await Promise.resolve(params);
-  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
   const slug = decodeURIComponent(resolvedParams.slug || '');
 
   if (!slug || slug === 'undefined' || slug === 'null') {

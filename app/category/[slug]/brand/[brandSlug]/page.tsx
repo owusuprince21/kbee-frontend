@@ -6,18 +6,13 @@ import ProductGrid from '@/components/ProductGrid';
 import { createPageMetadata } from '@/lib/seo';
 
 type PageProps = {
-  params: Promise<{ slug: string; brandSlug: string }> | { slug: string; brandSlug: string };
+  params: Promise<{ slug: string; brandSlug: string }>;
   searchParams: Promise<{
     page?: string;
     page_size?: string;
     ordering?: string;
     q?: string;
-  }> | {
-    page?: string;
-    page_size?: string;
-    ordering?: string;
-    q?: string;
-  };
+  }>;
 };
 
 const API_BASE =
@@ -59,7 +54,7 @@ function displayBrand(products: any[], fallback: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const resolvedParams = await Promise.resolve(params);
+  const resolvedParams = await params;
   const categorySlug = decodeURIComponent(resolvedParams.slug || '');
   const brandSlug = decodeURIComponent(resolvedParams.brandSlug || '');
 
@@ -82,8 +77,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function CategoryByBrandPage({ params, searchParams }: PageProps) {
-  const resolvedParams = await Promise.resolve(params);
-  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
   const categorySlug = decodeURIComponent(resolvedParams.slug || '');
   const brandSlug = decodeURIComponent(resolvedParams.brandSlug || '');
 
@@ -151,7 +146,7 @@ export default async function CategoryByBrandPage({ params, searchParams }: Page
         </div>
         <Link
           href={`/category/${categorySlug}`}
-          className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-yellow-500 hover:text-black"
+          className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-amber-700 hover:text-white"
         >
           Back to {categoryName}
         </Link>

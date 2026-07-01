@@ -11,13 +11,16 @@ import {
   Send,
   Facebook,
   Instagram,
+  Navigation,
+  ShieldCheck,
 } from 'lucide-react';
 import { FaXTwitter } from 'react-icons/fa6'; // ← use X (Twitter) from react-icons
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
-const MAP_QUERY = 'Prudential Bank Ltd. - Kingsway Branch';
+const SHOP_ADDRESS = 'Accra Kingsway Building, Shop No. 99, Ghana';
+const MAP_QUERY = 'KBee Computers Accra Kingsway Building Shop No. 99 Ghana';
 const MAP_EMBED_SRC = `https://www.google.com/maps?q=${encodeURIComponent(MAP_QUERY)}&z=16&output=embed`;
 const MAP_LINK = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(MAP_QUERY)}`;
 
@@ -42,7 +45,7 @@ export default function ContactPage() {
         '@type': 'PostalAddress',
         addressCountry: 'GH',
         addressLocality: 'Accra',
-        streetAddress: 'Prudential Bank Ltd. - Kingsway Branch',
+        streetAddress: SHOP_ADDRESS,
       },
       hasMap: MAP_LINK,
       areaServed: 'Ghana',
@@ -52,31 +55,43 @@ export default function ContactPage() {
   );
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-gradient-to-b from-white to-slate-50">
+    <main className="min-h-screen overflow-x-hidden bg-white">
       {/* Hero */}
-      <section className="border-b bg-gradient-to-br from-yellow-50 via-white to-white">
-        <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:py-14">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-yellow-200 bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
-            <span className="h-2 w-2 rounded-full bg-yellow-500" />
+      <section className="border-b bg-slate-950 text-white">
+        <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 sm:py-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
+          <div>
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-amber-700">
+            <span className="h-2 w-2 rounded-full bg-amber-600" />
             KBee Computers — Since September 2014
           </div>
 
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Contact Us</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600 sm:text-base">
-            We’re here to help with product advice, orders, bulk quotes, and after-sales support.
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Contact KBee Computers</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+              Get product advice, stock checks, bulk quotes, warranty guidance, and order support from our Accra team.
           </p>
+        </div>
+          <div className="grid gap-3 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
+            <div className="flex gap-3">
+              <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+              <span>{SHOP_ADDRESS}</span>
+            </div>
+            <div className="flex gap-3">
+              <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+              <span>Mon-Sat, 9:00-18:00 GMT</span>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Content */}
-      <section className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 px-4 py-8 sm:gap-8 sm:py-12 lg:grid-cols-[1.15fr_1fr]">
+      <section className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-8 px-4 py-10 sm:py-14 lg:grid-cols-[1.1fr_0.9fr]">
         {/* Left: Map + Details */}
         <div className="min-w-0 space-y-6">
           {/* Map */}
-          <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-            <div className="aspect-video w-full">
+          <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+            <div className="aspect-[4/3] w-full sm:aspect-video">
               <iframe
-                title="KBee Computers — Map"
+                title="KBee Computers map location"
                 src={MAP_EMBED_SRC}
                 className="h-full w-full"
                 loading="lazy"
@@ -85,14 +100,14 @@ export default function ContactPage() {
             </div>
 
             {/* Map footer */}
-            <div className="flex flex-col gap-3 border-t p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+            <div className="flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-start gap-3">
-                <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-yellow-600" />
+                <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
                 <div className="min-w-0">
                   <div className="break-words text-sm font-semibold text-slate-900">
-                    Ghana, Accra — Tudu, Kingsway Building
+                    {SHOP_ADDRESS}
                   </div>
-                  <div className="text-xs text-slate-500">Open in Google Maps</div>
+                  <div className="text-xs text-slate-500">Use the map for directions to the shop.</div>
                 </div>
               </div>
 
@@ -100,8 +115,9 @@ export default function ContactPage() {
                 href={MAP_LINK}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full rounded-md border px-3 py-2 text-center text-sm font-medium text-yellow-700 hover:bg-yellow-50 sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700 sm:w-auto"
               >
+                <Navigation className="h-4 w-4" />
                 Get directions
               </a>
             </div>
@@ -109,9 +125,9 @@ export default function ContactPage() {
 
           {/* Contact info cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <div className="rounded-xl border bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center gap-2">
-                <Phone className="h-5 w-5 text-yellow-600" />
+                <Phone className="h-5 w-5 text-amber-600" />
                 <h3 className="text-sm font-semibold text-slate-900">Phone / WhatsApp</h3>
               </div>
               <p className="text-sm text-slate-600">
@@ -119,29 +135,29 @@ export default function ContactPage() {
               </p>
               <a
                 href="tel:+233248147215"
-                className="mt-3 inline-block break-all text-sm font-medium text-yellow-700 hover:underline"
+                className="mt-3 inline-block break-all text-sm font-medium text-amber-700 hover:underline"
               >
                 +233 24 814 7215
               </a>
             </div>
 
-            <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <div className="rounded-xl border bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center gap-2">
-                <Mail className="h-5 w-5 text-yellow-600" />
+                <Mail className="h-5 w-5 text-amber-600" />
                 <h3 className="text-sm font-semibold text-slate-900">Email</h3>
               </div>
               <p className="text-sm text-slate-600">Send us specs, RFQs, or support requests.</p>
               <a
-                href="mailto:hello@kbeecomputers.com"
-                className="mt-3 inline-block break-all text-sm font-medium text-yellow-700 hover:underline"
+                href="mailto:info@kbeecomputers.com"
+                className="mt-3 inline-block break-all text-sm font-medium text-amber-700 hover:underline"
               >
-                hello@kbeecomputers.com
+                info@kbeecomputers.com
               </a>
             </div>
 
-            <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <div className="rounded-xl border bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center gap-2">
-                <Clock className="h-5 w-5 text-yellow-600" />
+                <Clock className="h-5 w-5 text-amber-600" />
                 <h3 className="text-sm font-semibold text-slate-900">Hours</h3>
               </div>
               <p className="text-sm text-slate-600">
@@ -149,9 +165,9 @@ export default function ContactPage() {
               </p>
             </div>
 
-            <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <div className="rounded-xl border bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-yellow-600" />
+                <MessageSquare className="h-5 w-5 text-amber-600" />
                 <h3 className="text-sm font-semibold text-slate-900">Social</h3>
               </div>
               <p className="text-sm text-slate-600">Find us on Facebook, Instagram, and X.</p>
@@ -160,7 +176,7 @@ export default function ContactPage() {
                   href="#"
                   aria-label="Facebook"
                   title="Facebook"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-yellow-700 hover:bg-yellow-50"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-amber-700 hover:bg-slate-50"
                 >
                   <Facebook className="h-5 w-5" />
                 </Link>
@@ -168,7 +184,7 @@ export default function ContactPage() {
                   href="#"
                   aria-label="Instagram"
                   title="Instagram"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-yellow-700 hover:bg-yellow-50"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-amber-700 hover:bg-slate-50"
                 >
                   <Instagram className="h-5 w-5" />
                 </Link>
@@ -176,7 +192,7 @@ export default function ContactPage() {
                   href="#"
                   aria-label="X"
                   title="X"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-yellow-700 hover:bg-yellow-50"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-amber-700 hover:bg-slate-50"
                 >
                   <FaXTwitter className="h-5 w-5" />
                 </Link>
@@ -186,7 +202,11 @@ export default function ContactPage() {
         </div>
 
         {/* Right: Contact form */}
-        <div className="min-w-0 rounded-2xl border bg-white p-5 shadow-sm sm:p-6 lg:p-7">
+        <div className="min-w-0 rounded-xl border bg-white p-5 shadow-sm sm:p-6 lg:p-7">
+          <div className="mb-5 flex items-start gap-3 rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-900">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
+            <p>Messages are reviewed during business hours. For urgent stock checks, call or WhatsApp us directly.</p>
+          </div>
           <h2 className="text-xl font-bold text-slate-900">Send us a message</h2>
           <p className="mt-1 text-sm text-slate-600">
             Tell us what you need — we’ll reply with availability and best pricing.
@@ -263,7 +283,7 @@ export default function ContactPage() {
 
             <Button
               type="submit"
-              className="mt-2 inline-flex w-full items-center justify-center gap-2 bg-yellow-500 text-black hover:bg-yellow-600 sm:w-auto"
+              className="mt-2 inline-flex w-full items-center justify-center gap-2 bg-amber-600 text-white hover:bg-amber-700 sm:w-auto"
             >
               <Send className="h-4 w-4" />
               Send message
@@ -271,7 +291,7 @@ export default function ContactPage() {
 
             <p className="text-xs text-slate-500">
               By submitting, you agree to our{' '}
-              <Link href="/policies/privacy" className="text-yellow-700 hover:underline">
+              <Link href="/policies/privacy" className="text-amber-700 hover:underline">
                 Privacy Policy
               </Link>
               .

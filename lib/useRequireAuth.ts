@@ -7,8 +7,8 @@ import { useAuthStore } from '@/store/authStore';
 export function useRequireAuth() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, token } = useAuthStore();
-  const isAuthed = Boolean(user && token);
+  const { user } = useAuthStore();
+  const isAuthed = Boolean(user);
 
   /**
    * Runs `fn` only if authed; otherwise nudges user to sign in and redirects.

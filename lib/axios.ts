@@ -8,11 +8,13 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
+  return import('@/lib/firebase')
+    .then(async ({ auth }) => {
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+      return config;
+    })
+    .catch(() => config);
 });
 
 export default apiClient;

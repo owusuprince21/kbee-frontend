@@ -60,7 +60,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                     <Link
                       href={`/product/${item.product.slug}`}
                       onClick={onClose}
-                      className="font-medium hover:text-yellow-600 line-clamp-2"
+                      className="font-medium hover:text-amber-600 line-clamp-2"
                     >
                       {item.product.name}
                     </Link>
@@ -89,7 +89,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
               <span>Subtotal:</span>
               <span>£{getTotal().toFixed(2)}</span>
             </div>
-            <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-black" asChild>
+            <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white" asChild>
               <Link href="/cart" onClick={onClose}>
                 View Cart
               </Link>

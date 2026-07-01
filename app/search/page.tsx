@@ -4,13 +4,11 @@ import ProductGrid from '@/components/ProductGrid';
 import { createPageMetadata } from '@/lib/seo';
 
 type PageProps = {
-  searchParams:
-    | Promise<{ q?: string; page?: string; page_size?: string; ordering?: string }>
-    | { q?: string; page?: string; page_size?: string; ordering?: string };
+  searchParams: Promise<{ q?: string; page?: string; page_size?: string; ordering?: string }>;
 };
 
 export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
-  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const resolvedSearchParams = await searchParams;
   const q = (resolvedSearchParams.q || '').trim();
 
   return createPageMetadata({
@@ -37,7 +35,7 @@ async function fetchProducts(q = '', page = 1, pageSize = 24, ordering = '-creat
 }
 
 export default async function SearchPage({ searchParams }: PageProps) {
-  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const resolvedSearchParams = await searchParams;
   const q = (resolvedSearchParams.q || '').trim();
   const page = Number(resolvedSearchParams.page || 1) || 1;
   const pageSize = Number(resolvedSearchParams.page_size || 24) || 24;
