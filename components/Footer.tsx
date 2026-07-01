@@ -34,7 +34,7 @@ export default function Footer() {
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           <div>
-            <h3 className="text-xl font-bold mb-4 text-slate-500">Kbee Computers</h3>
+            <h3 className="text-lg font-semibold mb-4">Kbee Computers</h3>
             <p className="text-gray-400 mb-4">
               Your trusted source for quality UK used and new laptops, accessories, and computer equipment.
             </p>
