@@ -1,6 +1,20 @@
 import type { Metadata } from 'next';
 
-export const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://kbeecomputersgh.com').replace(/\/$/, '');
+export const siteUrl = (
+  process.env.NEXT_PUBLIC_SITE_URL || 'https://kbeecomputersgh.com'
+).replace(/\/$/, '');
+
+export const apiBaseUrl = (
+  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://kbee-backend.onrender.com'
+).replace(/\/$/, '');
+
+export const apiUrl = (
+  process.env.NEXT_PUBLIC_API_URL || `${apiBaseUrl}/api`
+).replace(/\/$/, '');
+
+export const mediaUrl = (
+  process.env.NEXT_PUBLIC_MEDIA_URL || apiBaseUrl
+).replace(/\/$/, '');
 
 export const siteName = 'KBee Computers';
 
@@ -55,7 +69,9 @@ export function absoluteUrl(path = '/') {
 }
 
 export function seoTitle(title?: string) {
-  return title ? `${title} | ${siteName}` : `${siteName} | Quality New & UK Used Laptops in Ghana`;
+  return title
+    ? `${title} | ${siteName}`
+    : `${siteName} | Quality New & UK Used Laptops in Ghana`;
 }
 
 export function ogImageForPath(path = '/') {
@@ -82,10 +98,11 @@ export function createPageMetadata({
   const cardImage = image || ogImageForPath(path);
 
   return {
+    metadataBase: new URL(siteUrl),
     title: fullTitle,
     description,
     alternates: {
-      canonical: path,
+      canonical: absoluteUrl(path),
     },
     openGraph: {
       type,
@@ -96,7 +113,7 @@ export function createPageMetadata({
       description,
       images: [
         {
-          url: cardImage,
+          url: absoluteUrl(cardImage),
           width: 1200,
           height: 630,
           alt: siteName,
@@ -107,7 +124,7 @@ export function createPageMetadata({
       card: 'summary_large_image',
       title: fullTitle,
       description,
-      images: [cardImage],
+      images: [absoluteUrl(cardImage)],
     },
     robots,
   };

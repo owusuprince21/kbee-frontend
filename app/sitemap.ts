@@ -1,11 +1,15 @@
 import type { MetadataRoute } from 'next';
-import { siteUrl } from '@/lib/seo';
+import { apiBaseUrl, siteUrl } from '@/lib/seo';
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_BASE = apiBaseUrl;
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 
-function route(path: string, priority: number, changeFrequency: SitemapEntry['changeFrequency']): SitemapEntry {
+function route(
+  path: string,
+  priority: number,
+  changeFrequency: SitemapEntry['changeFrequency']
+): SitemapEntry {
   return {
     url: `${siteUrl}${path}`,
     lastModified: new Date(),
@@ -14,20 +18,45 @@ function route(path: string, priority: number, changeFrequency: SitemapEntry['ch
   };
 }
 
-function extractList(payload: any) {
-  if (Array.isArray(payload?.results)) return payload.results;
+function extractList(payload: unknown): any[] {
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'results' in payload &&
+    Array.isArray((payload as any).results)
+  ) {
+    return (payload as any).results;
+  }
+
   if (Array.isArray(payload)) return payload;
+
   return [];
 }
 
-async function fetchList(path: string) {
+async function fetchList(path: string): Promise<any[]> {
   try {
-    const res = await fetch(`${API_BASE}${path}`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${API_BASE}${path}`, {
+      next: { revalidate: 3600 },
+    });
+
     if (!res.ok) return [];
+
     return extractList(await res.json());
   } catch {
     return [];
   }
+}
+
+function safeDate(value?: string | null): Date {
+  if (!value) return new Date();
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return new Date();
+  }
+
+  return date;
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -49,13 +78,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const categoryRoutes: MetadataRoute.Sitemap = categories
     .filter((category: any) => category?.slug)
-    .map((category: any) => route(`/category/${category.slug}`, 0.85, 'weekly'));
+    .map((category: any) =>
+      route(`/category/${category.slug}`, 0.85, 'weekly')
+    );
 
   const productRoutes: MetadataRoute.Sitemap = products
     .filter((product: any) => product?.slug)
     .map((product: any) => ({
       ...route(`/product/${product.slug}`, 0.9, 'weekly'),
-      lastModified: product?.updated_at ? new Date(product.updated_at) : new Date(),
+      lastModified: safeDate(product?.updated_at),
     }));
 
   return [...staticRoutes, ...categoryRoutes, ...productRoutes];
