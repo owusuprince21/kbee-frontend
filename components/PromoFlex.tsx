@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -93,6 +93,7 @@ function fallbackPromo(): BrandPromo {
 export default function PromoFlex({
   promos: promosProp,
 }: { promos?: BrandPromo[] }) {
+  const [mounted, setMounted] = useState(false);
   const promoQuery = useQuery({
     queryKey: ['products', 'brand-promos', 'laptops'],
     queryFn: async () => {
@@ -110,9 +111,13 @@ export default function PromoFlex({
     refetchOnMount: true,
   });
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const promos: BrandPromo[] = useMemo(() => {
     if (promosProp?.length) return promosProp.filter(validPromo).slice(0, 2);
-    if (promoQuery.data?.length) return promoQuery.data.filter(validPromo).slice(0, 2);
+    if (mounted && promoQuery.data?.length) return promoQuery.data.filter(validPromo).slice(0, 2);
 
     // Fallback to two static promos if API has nothing yet
     return [
@@ -126,7 +131,7 @@ export default function PromoFlex({
         categorySlug: 'laptops',
       },
     ];
-  }, [promosProp, promoQuery.data]);
+  }, [mounted, promosProp, promoQuery.data]);
 
   // Two soft backgrounds if none provided
   const fallbacks = ['#dff0f6', '#ece8df'];

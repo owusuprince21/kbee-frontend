@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -45,8 +46,37 @@ function categoryImage(category: BannerCategory) {
   return category.image || fallbackImages[category.slug] || '/placeholder.jpg';
 }
 
+function HotDealBannersSkeleton() {
+  return (
+    <div className="container mx-auto px-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div key={index} className="rounded-2xl bg-slate-100 p-3 sm:p-4 md:p-6">
+            <div className="grid h-[220px] items-center gap-3 sm:h-[240px] md:h-[260px] md:grid-cols-2 md:gap-4">
+              <div className="h-full animate-pulse rounded-xl bg-white/70" />
+              <div className="space-y-3">
+                <div className="h-4 w-24 animate-pulse rounded bg-white/80" />
+                <div className="h-8 w-44 animate-pulse rounded bg-white/80" />
+                <div className="h-5 w-56 animate-pulse rounded bg-white/80" />
+                <div className="h-9 w-28 animate-pulse rounded-full bg-white/80" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function HotDealBanners({ categories = [] }: { categories?: BannerCategory[] }) {
-  const banners = categories.filter((category) => category.slug).slice(0, 2);
+  const [mounted, setMounted] = useState(false);
+  const banners = mounted ? categories.filter((category) => category.slug).slice(0, 2) : [];
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return <HotDealBannersSkeleton />;
   if (!banners.length) return null;
 
   return (

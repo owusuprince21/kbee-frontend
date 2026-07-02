@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -127,6 +127,7 @@ async function fetchHomeData(): Promise<HomeData> {
 }
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
   const homeQuery = useQuery({
     queryKey: HOME_QUERY_KEY,
     queryFn: fetchHomeData,
@@ -136,12 +137,16 @@ export default function Home() {
   });
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (homeQuery.isError) {
       toast.error((homeQuery.error as any)?.message || 'Failed to load homepage data.');
     }
   }, [homeQuery.error, homeQuery.isError]);
 
-  const homeData: HomeData = homeQuery.data ?? {
+  const homeData: HomeData = mounted && homeQuery.data ? homeQuery.data : {
     heroProducts: [],
     newArrivals: [],
     bestSelling: [],

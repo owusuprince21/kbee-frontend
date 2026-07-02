@@ -6,10 +6,12 @@ import Image from 'next/image';
 import {
   signInWithPopup,
   onAuthStateChanged,
+  signOut,
+  type User as FirebaseUser,
 } from 'firebase/auth';
 import { auth, configurePrivateAuthPersistence, provider, toSafeUser } from '@/lib/firebase';
 import { useAuthStore } from '@/store/authStore';
-import { clearGuestId, http } from '@/lib/api/http';
+import { clearGuestId, getStoredGuestId, http } from '@/lib/api/http';
 import type { User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,6 +46,22 @@ function userFromCustomer(customer: any): User {
   };
 }
 
+async function syncSignedInCustomer(firebaseUser: FirebaseUser, customerPayload: Record<string, string>) {
+  const token = await firebaseUser.getIdToken(true);
+  const guestId = getStoredGuestId();
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+  };
+  if (guestId) headers['X-Guest-ID'] = guestId;
+
+  return http('/api/customers/me/', {
+    method: 'PATCH',
+    headers,
+    allowGuest: false,
+    body: customerPayload,
+  });
+}
+
 export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -70,7 +88,6 @@ export default function SignInPage() {
             }
             setUser(toSafeUser(u));
             setToken(null);
-            clearGuestId();
             setInitializing(false);
           } catch (err) {
             // If something goes wrong here, still allow the UI
@@ -97,20 +114,23 @@ export default function SignInPage() {
     try {
       const credential = await signInWithPopup(auth, provider);
       const firebaseUser = credential.user;
-      const customer = await http('/api/customers/me/', {
-        method: 'PATCH',
-        body: {
-          email: firebaseUser.email || '',
-          full_name: firebaseUser.displayName || '',
-          photo_url: firebaseUser.photoURL || '',
-        },
-      });
+      const payload = {
+        email: firebaseUser.email || '',
+        full_name: firebaseUser.displayName || '',
+        photo_url: firebaseUser.photoURL || '',
+      };
+      const customer = await syncSignedInCustomer(firebaseUser, payload);
       setUser(userFromCustomer(customer));
       setToken(null);
       clearGuestId();
       toast.success('Signed in successfully!');
       router.replace(nextUrl);
     } catch (err: any) {
+      if (auth.currentUser) {
+        await signOut(auth).catch(() => {});
+        setUser(null);
+        setToken(null);
+      }
       toast.error(mapFirebaseError(err?.code));
     } finally {
       setLoading(false);

@@ -14,26 +14,6 @@ import { commerceKeys } from '@/lib/api/commerce';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 
-type AnyRec = Record<string, any>;
-function extractUserIdentity(u: unknown) {
-  const anyU = (u || {}) as AnyRec;
-  const uid = anyU.uid ?? anyU.id ?? anyU.firebase_uid ?? null;
-  const email = anyU.email ?? null;
-  const name = anyU.displayName ?? anyU.full_name ?? anyU.name ?? null;
-  const photo = anyU.photoURL ?? anyU.photo_url ?? null;
-  return { uid, email, name, photo };
-}
-function buildFirebaseHeaders(user: unknown): HeadersInit {
-  const { uid, email, name, photo } = extractUserIdentity(user);
-  const h: Record<string, string> = {};
-  const firebaseUid = uid == null ? '' : String(uid);
-  if (firebaseUid && !firebaseUid.startsWith('customer:')) h['X-Firebase-UID'] = firebaseUid;
-  if (email) h['X-User-Email'] = String(email);
-  if (name) h['X-User-Name'] = String(name);
-  if (photo) h['X-User-Photo'] = String(photo);
-  return h;
-}
-
 function normalizeHttps(u?: string | null): string | undefined {
   if (!u) return u ?? undefined;
   try {
@@ -80,6 +60,7 @@ type ServerCart = {
 };
 
 const emptyCart: ServerCart = { id: 0, items: [], subtotal: '0.00' };
+const CHECKOUT_CART_SNAPSHOT_KEY = 'kbee_checkout_cart_snapshot';
 
 const toNum = (n: unknown) => {
   const v = Number(n);
@@ -96,7 +77,7 @@ function stockLimit(product?: ServerProduct) {
 }
 
 export default function CartPage() {
-  const { user } = useAuthStore();
+  const { user, hasHydrated, authReady } = useAuthStore();
   const localCart = useCartStore();
   const queryClient = useQueryClient();
 
@@ -104,16 +85,17 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
-  const headers = useMemo(() => buildFirebaseHeaders(user), [user]);
+  const headers = useMemo<HeadersInit>(() => ({}), []);
+  const allowGuestRequests = !user;
   const publishCart = (nextCart: ServerCart) => {
     setCart(nextCart);
-    queryClient.setQueryData(commerceKeys.cart, nextCart);
+    queryClient.setQueriesData({ queryKey: commerceKeys.cart }, nextCart);
     window.dispatchEvent(new Event(nextCart.items?.length ? 'cart:updated' : 'cart:cleared'));
   };
 
   const fetchServerCart = async () => {
     try {
-      const data = await http<ServerCart>('/api/cart/', { headers });
+      const data = await http<ServerCart>('/api/cart/', { headers, allowGuest: allowGuestRequests });
       publishCart(data);
       return data;
     } catch {
@@ -128,8 +110,8 @@ export default function CartPage() {
 
     setSyncing(true);
     try {
-      await fetchServerCart();
-      const current = cart ? [...cart.items] : [];
+      const serverCart = await fetchServerCart();
+      const current = serverCart ? [...serverCart.items] : [];
 
       for (const it of items) {
         const productId = it.product?.id;
@@ -141,12 +123,14 @@ export default function CartPage() {
           await http<ServerCart>(`/api/cart/update_item/${existing.id}/`, {
             method: 'PATCH',
             headers,
+            allowGuest: allowGuestRequests,
             body: { quantity: qty },
           });
         } else {
           await http<ServerCart>('/api/cart/add_item/', {
             method: 'POST',
             headers,
+            allowGuest: allowGuestRequests,
             body: { product: productId, quantity: qty },
           });
         }
@@ -166,6 +150,10 @@ export default function CartPage() {
 
   useEffect(() => {
     (async () => {
+      if (!hasHydrated || (user && !authReady)) {
+        setLoading(true);
+        return;
+      }
       setLoading(true);
       try {
         await fetchServerCart();
@@ -178,7 +166,7 @@ export default function CartPage() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [authReady, hasHydrated, user]);
 
   const grandSubtotal = useMemo(() => {
     if (!cart?.items?.length) return 0;
@@ -195,6 +183,7 @@ export default function CartPage() {
       const data = await http<ServerCart>(`/api/cart/update_item/${itemId}/`, {
         method: 'PATCH',
         headers,
+        allowGuest: allowGuestRequests,
         body: { quantity: qty },
       });
       publishCart(data);
@@ -208,6 +197,7 @@ export default function CartPage() {
       const data = await http<ServerCart>(`/api/cart/remove_item/${itemId}/`, {
         method: 'DELETE',
         headers,
+        allowGuest: allowGuestRequests,
       });
       publishCart(data);
     } catch {
@@ -217,7 +207,7 @@ export default function CartPage() {
 
   const clearServerCart = async () => {
     try {
-      await http<{ detail: string }>('/api/cart/clear/', { method: 'POST', headers });
+      await http<{ detail: string }>('/api/cart/clear/', { method: 'POST', headers, allowGuest: allowGuestRequests });
       publishCart(emptyCart);
       await fetchServerCart();
     } catch {
@@ -235,6 +225,13 @@ export default function CartPage() {
   }
 
   const items = cart?.items ?? [];
+  const prepareCheckoutSnapshot = () => {
+    try {
+      if (cart?.items?.length) {
+        localStorage.setItem(CHECKOUT_CART_SNAPSHOT_KEY, JSON.stringify(cart));
+      }
+    } catch {}
+  };
 
   if (!items.length) {
     return (
@@ -456,7 +453,7 @@ export default function CartPage() {
             </div>
           </div>
 
-          <Link href="/checkout" className="block">
+          <Link href="/checkout" className="block" onClick={prepareCheckoutSnapshot}>
             <Button className="w-full bg-amber-600 text-white hover:bg-amber-700">
               Proceed to Checkout
             </Button>

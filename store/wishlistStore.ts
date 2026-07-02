@@ -16,7 +16,20 @@ export const useWishlistStore = create<WishlistState>()(
   persist(
     (set, get) => ({
       items: [],
-      addItem: (product) => { /* ... */ },
+      addItem: (product) => {
+        const items = get().items;
+        if (items.some((it) => it.product.id === product.id)) return;
+        set({
+          items: [
+            ...items,
+            {
+              id: Date.now(),
+              product,
+              added_at: new Date().toISOString(),
+            } as WishlistItem,
+          ],
+        });
+      },
       removeItem: (productId) => {
         set({ items: get().items.filter((it) => it.product.id !== productId) });
       },

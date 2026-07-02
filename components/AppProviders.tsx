@@ -14,7 +14,7 @@ function isPublicQuery(queryKey: readonly unknown[]) {
 }
 
 function createQueryClient() {
-  const queryClient = new QueryClient({
+  return new QueryClient({
     defaultOptions: {
       queries: {
         staleTime: 0,
@@ -25,22 +25,6 @@ function createQueryClient() {
       },
     },
   });
-
-  if (typeof window !== 'undefined') {
-    try {
-      const raw = window.localStorage.getItem(PUBLIC_QUERY_CACHE_KEY);
-      const cached = raw ? JSON.parse(raw) : null;
-      if (cached?.timestamp && Date.now() - cached.timestamp < PUBLIC_QUERY_CACHE_MAX_AGE && cached.clientState) {
-        hydrate(queryClient, cached.clientState);
-      } else if (cached) {
-        window.localStorage.removeItem(PUBLIC_QUERY_CACHE_KEY);
-      }
-    } catch {
-      window.localStorage.removeItem(PUBLIC_QUERY_CACHE_KEY);
-    }
-  }
-
-  return queryClient;
 }
 
 function CommerceEventBridge({ queryClient }: { queryClient: QueryClient }) {
@@ -49,7 +33,7 @@ function CommerceEventBridge({ queryClient }: { queryClient: QueryClient }) {
       queryClient.invalidateQueries({ queryKey: commerceKeys.cart });
     };
     const clearCart = () => {
-      queryClient.setQueryData(commerceKeys.cart, emptyCart);
+      queryClient.setQueriesData({ queryKey: commerceKeys.cart }, emptyCart);
       queryClient.invalidateQueries({ queryKey: commerceKeys.cart });
     };
     const refreshWishlist = () => {
@@ -71,6 +55,20 @@ function CommerceEventBridge({ queryClient }: { queryClient: QueryClient }) {
 
 export default function AppProviders({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(createQueryClient);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PUBLIC_QUERY_CACHE_KEY);
+      const cached = raw ? JSON.parse(raw) : null;
+      if (cached?.timestamp && Date.now() - cached.timestamp < PUBLIC_QUERY_CACHE_MAX_AGE && cached.clientState) {
+        hydrate(queryClient, cached.clientState);
+      } else if (cached) {
+        window.localStorage.removeItem(PUBLIC_QUERY_CACHE_KEY);
+      }
+    } catch {
+      window.localStorage.removeItem(PUBLIC_QUERY_CACHE_KEY);
+    }
+  }, [queryClient]);
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout> | null = null;

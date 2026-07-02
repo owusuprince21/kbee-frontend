@@ -20,10 +20,16 @@ function initials(name: string) {
 
 export default function BrowseByCategory({ categories: categoriesProp }: { categories?: UiCategory[] }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
   const [fetched, setFetched] = useState<UiCategory[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     if (categoriesProp?.length) return;
     let cancelled = false;
     (async () => {
@@ -44,11 +50,11 @@ export default function BrowseByCategory({ categories: categoriesProp }: { categ
       }
     })();
     return () => { cancelled = true; };
-  }, [categoriesProp]);
+  }, [categoriesProp, mounted]);
 
   const categories: UiCategory[] = useMemo(
-    () => (categoriesProp?.length ? categoriesProp : fetched ?? []).filter((c) => validSlug(c.slug)),
-    [categoriesProp, fetched]
+    () => (mounted && categoriesProp?.length ? categoriesProp : fetched ?? []).filter((c) => validSlug(c.slug)),
+    [categoriesProp, fetched, mounted]
   );
 
   const scrollByDir = (dir: -1 | 1) => {
@@ -80,7 +86,7 @@ export default function BrowseByCategory({ categories: categoriesProp }: { categ
         >
           <style jsx>{`div::-webkit-scrollbar{display:none}`}</style>
 
-          {loading && categories.length === 0 ? (
+          {(!mounted || loading) && categories.length === 0 ? (
             Array.from({ length: 6 }).map((_, i) => (
               // narrower item + smaller skeleton circle
               <div key={i} className="w-[110px] shrink-0 md:w-[140px]">

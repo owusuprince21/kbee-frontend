@@ -19,6 +19,8 @@ import {
 import { listCategories } from '@/lib/api/categories';
 import { useCartQuery, useWishlistQuery } from '@/lib/api/commerce';
 import { useAuthStore } from '@/store/authStore';
+import { useCartTotalQuantity } from '@/store/cartStore';
+import { useWishlistStore } from '@/store/wishlistStore';
 
 const MenuSidebar = dynamic(() => import('@/components/MenuSideBar'), { ssr: false });
 const SearchDialog = dynamic(() => import('@/components/SearchDialog'), { ssr: false });
@@ -35,6 +37,8 @@ export default function Navbar() {
   const { user } = useAuthStore();
   const cartQuery = useCartQuery();
   const wishlistQuery = useWishlistQuery();
+  const localCartCount = useCartTotalQuantity();
+  const localWishlistCount = useWishlistStore((s) => s.items.length);
 
   // drawers/dialogs
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -77,11 +81,13 @@ export default function Navbar() {
     if (q) router.push(`/search?q=${encodeURIComponent(q)}`);
   };
 
-  const cartCount =
+  const serverCartCount =
     cartQuery.data?.items?.reduce((sum: number, item: { quantity?: number | string }) => {
       return sum + Number(item.quantity || 0);
     }, 0) || 0;
-  const wishlistCount = wishlistQuery.data?.length || 0;
+  const cartCount = user ? serverCartCount : serverCartCount || localCartCount;
+  const serverWishlistCount = wishlistQuery.data?.length || 0;
+  const wishlistCount = user ? serverWishlistCount : serverWishlistCount || localWishlistCount;
 
   return (
     <>
@@ -164,7 +170,7 @@ export default function Navbar() {
                 <Link href="/wishlist" className="relative rounded-full p-1.5 transition-colors hover:bg-gray-100 md:p-2" aria-label="Wishlist">
                   <Heart className="h-5 w-5 md:h-6 md:w-6" />
                   {wishlistCount > 0 ? (
-                    <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    <span className={`absolute -right-1 -top-1 grid h-5 place-items-center rounded-full bg-red-500 text-[10px] font-bold text-white ${wishlistCount < 10 ? 'w-5' : 'min-w-5 px-1'}`}>
                       {wishlistCount}
                     </span>
                   ) : null}
@@ -173,7 +179,7 @@ export default function Navbar() {
                 <Link href="/cart" className="relative rounded-full p-1.5 transition-colors hover:bg-gray-100 md:p-2" aria-label="Cart">
                   <ShoppingCart className="h-5 w-5 md:h-6 md:w-6" />
                   {cartCount > 0 ? (
-                    <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-amber-600 px-1 text-[10px] font-bold text-white">
+                    <span className={`absolute -right-1 -top-1 grid h-5 place-items-center rounded-full bg-amber-600 text-[10px] font-bold text-white ${cartCount < 10 ? 'w-5' : 'min-w-5 px-1'}`}>
                       {cartCount}
                     </span>
                   ) : null}

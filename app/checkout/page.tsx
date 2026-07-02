@@ -30,15 +30,8 @@ function extractUserIdentity(u: unknown) {
   const photo = anyU.photoURL ?? anyU.photo_url ?? null;
   return { uid, email, name, photo };
 }
-function buildFirebaseHeaders(user: unknown): HeadersInit {
-  const { uid, email, name, photo } = extractUserIdentity(user);
-  const h: Record<string, string> = {};
-  const firebaseUid = uid == null ? '' : String(uid);
-  if (firebaseUid && !firebaseUid.startsWith('customer:')) h['X-Firebase-UID'] = firebaseUid;
-  if (email) h['X-User-Email'] = String(email);
-  if (name) h['X-User-Name'] = String(name);
-  if (photo) h['X-User-Photo'] = String(photo);
-  return h;
+function buildFirebaseHeaders(_user: unknown): HeadersInit {
+  return {};
 }
 
 /* ---------- types ---------- */
@@ -64,6 +57,7 @@ type CartItemDTO = {
   slug?: string | null;
 };
 type CartDTO = { items: CartItemDTO[]; subtotal?: number };
+const CHECKOUT_CART_SNAPSHOT_KEY = 'kbee_checkout_cart_snapshot';
 
 type InitResp = {
   tx_ref: string;
@@ -105,18 +99,29 @@ function unwrapList<T>(payload: unknown): T[] {
 function normalizeCart(api: any): CartDTO {
   if (!api) return { items: [] };
   const rawItems =
-    api.items ?? api.data?.items ?? api.cart_items ?? (Array.isArray(api) ? api : null);
+    api.items ??
+    api.state?.items ??
+    api.data?.items ??
+    api.data?.state?.items ??
+    api.cart_items ??
+    (Array.isArray(api) ? api : null);
 
   const items: CartItemDTO[] = Array.isArray(rawItems)
     ? rawItems
         .map((it: any): CartItemDTO | null => {
-          const name = it?.product?.name ?? it?.product_name ?? it?.name ?? it?.title ?? 'Item';
+          const product = it?.product ?? {};
+          const name = product?.name ?? it?.product_name ?? it?.name ?? it?.title ?? 'Item';
           const unit =
-            toNum(it?.unit_price) || toNum(it?.price) || toNum(it?.final_price) || toNum(it?.product_price);
+            toNum(it?.unit_price) ||
+            toNum(it?.price) ||
+            toNum(it?.final_price) ||
+            toNum(it?.product_price) ||
+            toNum(product?.discount_price) ||
+            toNum(product?.price);
           const qty = toNum(it?.quantity ?? it?.qty ?? 1);
-          const pidCandidate = toNum(it?.product_id) || toNum(it?.id);
-          const id = String(it?.id ?? it?.product_id ?? name);
-          const slug = it?.product_slug ?? it?.slug ?? null;
+          const pidCandidate = toNum(it?.product_id) || toNum(product?.id) || toNum(it?.id);
+          const id = String(it?.id ?? it?.product_id ?? product?.id ?? name);
+          const slug = it?.product_slug ?? it?.slug ?? product?.slug ?? null;
           if (!qty || !unit) return null;
           return {
             id,
@@ -136,7 +141,7 @@ function normalizeCart(api: any): CartDTO {
 
 function readLocalCart(): CartDTO | null {
   if (typeof window === 'undefined') return null;
-  const keys = ['cart', 'cartItems', 'kbee-cart'];
+  const keys = [CHECKOUT_CART_SNAPSHOT_KEY, 'cart-storage', 'cart', 'cartItems', 'kbee-cart'];
   for (const k of keys) {
     try {
       const raw = window.localStorage.getItem(k);
@@ -156,6 +161,7 @@ export default function CheckoutPage() {
   const { user, hasHydrated, authReady } = useAuthStore();
   const me = useMemo(() => extractUserIdentity(user), [user]);
   const allowGuestRequests = !user;
+  const checkoutLoadKey = `${hasHydrated ? 'ready' : 'pending'}:${authReady ? 'auth' : 'auth-pending'}:${allowGuestRequests ? 'guest' : 'account'}:${me.name || ''}`;
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [cart, setCart] = useState<CartDTO | null>(null);
@@ -263,6 +269,11 @@ export default function CheckoutPage() {
 
   // load addresses + cart (use API, fall back to localStorage; if server empty and local exists → sync up)
   useEffect(() => {
+    if (!hasHydrated || (user && !authReady)) {
+      setLoadingCart(true);
+      return;
+    }
+
     const headers = buildFirebaseHeaders(user);
 
     (async () => {
@@ -305,6 +316,9 @@ export default function CheckoutPage() {
               server = await fetchServerCart(headers);
               toast.success('Cart synced to your account.');
             }
+            if (!server.items.length) {
+              server = local;
+            }
           }
         }
 
@@ -316,7 +330,7 @@ export default function CheckoutPage() {
         setLoadingCart(false);
       }
     })();
-  }, [user, me.name, allowGuestRequests]);
+  }, [user, checkoutLoadKey, allowGuestRequests]);
 
   // subtotal prefers backend value if present; else sum items
   const subtotal = useMemo(() => {
@@ -446,6 +460,7 @@ export default function CheckoutPage() {
     try {
       const keys = ['cart', 'cartItems', 'kbee-cart', 'cart-storage'];
       keys.forEach(k => localStorage.removeItem(k));
+      localStorage.removeItem(CHECKOUT_CART_SNAPSHOT_KEY);
       window.dispatchEvent(new Event('cart:cleared'));
       window.dispatchEvent(new Event('cart:updated'));
     } catch {}

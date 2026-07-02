@@ -260,6 +260,7 @@ export default function ProductDetailPage() {
   const slug = params?.slug as string | undefined;
   const queryClient = useQueryClient();
 
+  const [mounted, setMounted] = useState(false);
   const [quantity, setQuantity] = useState(1);
 
   const [activeIndex, setActiveIndex] = useState(0);
@@ -269,6 +270,10 @@ export default function ProductDetailPage() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const addToCart = useAddToCartMutation();
   const addToWishlist = useAddToWishlistMutation();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const productQuery = useQuery({
     queryKey: ['product', slug],
@@ -474,7 +479,7 @@ export default function ProductDetailPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [openLightbox, gallery.length]);
 
-  if (productQuery.isLoading && !product) {
+  if (!mounted || (productQuery.isLoading && !product)) {
     return (
       <div className="container mx-auto px-4 py-10">
         <div className="grid gap-8 lg:grid-cols-2">

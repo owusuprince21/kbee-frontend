@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { formatGHS } from '@/lib/currencyformat';
@@ -13,27 +14,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 import { useWishlistStore } from '@/store/wishlistStore';
 import { http, type Paginated } from '@/lib/api/http';
-
-/* ---------- identity helpers ---------- */
-type AnyRec = Record<string, any>;
-function extractUserIdentity(u: unknown) {
-  const anyU = (u || {}) as AnyRec;
-  const uid = anyU.uid ?? anyU.id ?? anyU.firebase_uid ?? null;
-  const email = anyU.email ?? null;
-  const name = anyU.displayName ?? anyU.full_name ?? anyU.name ?? null;
-  const photo = anyU.photoURL ?? anyU.photo_url ?? null;
-  return { uid, email, name, photo };
-}
-function buildFirebaseHeaders(user: unknown): HeadersInit {
-  const { uid, email, name, photo } = extractUserIdentity(user);
-  const h: Record<string, string> = {};
-  const firebaseUid = uid == null ? '' : String(uid);
-  if (firebaseUid && !firebaseUid.startsWith('customer:')) h['X-Firebase-UID'] = firebaseUid;
-  if (email) h['X-User-Email'] = String(email);
-  if (name) h['X-User-Name'] = String(name);
-  if (photo) h['X-User-Photo'] = String(photo);
-  return h;
-}
+import { commerceKeys } from '@/lib/api/commerce';
 
 /* ---------- types aligned with WishlistItemSerializer ---------- */
 type UiImage = { image?: string | null };
@@ -53,7 +34,8 @@ type UiWishlistItem = {
 };
 
 export default function WishlistPage() {
-  const { user } = useAuthStore();
+  const { user, hasHydrated, authReady } = useAuthStore();
+  const queryClient = useQueryClient();
 
   // local-store fallbacks (guest mode)
   const localWishlist = useWishlistStore();
@@ -63,9 +45,15 @@ export default function WishlistPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<UiWishlistItem[]>([]);
 
-  const isSignedIn = useMemo(() => !!extractUserIdentity(user).uid, [user]);
+  const isSignedIn = Boolean(user);
+  const allowGuestRequests = !user;
 
   const fetchServerWishlist = useCallback(async () => {
+    if (!hasHydrated || (user && !authReady)) {
+      setLoading(true);
+      return;
+    }
+
     if (!isSignedIn) {
       // guest fallback: mirror local store
       setItems(
@@ -80,8 +68,9 @@ export default function WishlistPage() {
     }
     try {
       setLoading(true);
-      const headers = buildFirebaseHeaders(user);
-      const res = await http<UiWishlistItem[] | Paginated<UiWishlistItem>>('/api/wishlist/', { headers });
+      const res = await http<UiWishlistItem[] | Paginated<UiWishlistItem>>('/api/wishlist/', {
+        allowGuest: allowGuestRequests,
+      });
       const list = Array.isArray((res as Paginated<UiWishlistItem>)?.results)
         ? (res as Paginated<UiWishlistItem>).results
         : (res as UiWishlistItem[]);
@@ -91,7 +80,7 @@ export default function WishlistPage() {
     } finally {
       setLoading(false);
     }
-  }, [isSignedIn, user, localWishlist.items]);
+  }, [allowGuestRequests, authReady, hasHydrated, isSignedIn, localWishlist.items, user]);
 
   useEffect(() => {
     fetchServerWishlist();
@@ -109,14 +98,15 @@ export default function WishlistPage() {
       if (!isSignedIn) {
         addToCartLocal(product as any);
         toast.message('Added locally. Sign in to sync your cart.');
+        window.dispatchEvent(new Event('cart:updated'));
         return;
       }
-      const headers = buildFirebaseHeaders(user);
-      await http('/api/cart/add_item/', {
+      const cart = await http('/api/cart/add_item/', {
         method: 'POST',
-        headers,
-        body: { product: product.id, quantity: 1 },
+        allowGuest: false,
+        body: { product_id: product.id, quantity: 1 },
       });
+      queryClient.setQueriesData({ queryKey: commerceKeys.cart }, cart);
       toast.success('Added to cart!');
       window.dispatchEvent(new Event('cart:updated'));
     } catch {
@@ -129,14 +119,15 @@ export default function WishlistPage() {
       if (!isSignedIn) {
         localWishlist.removeItem(productId);
         setItems((prev) => prev.filter((it) => it.product.id !== productId));
+        window.dispatchEvent(new Event('wishlist:updated'));
         return;
       }
-      const headers = buildFirebaseHeaders(user);
       await http(`/api/wishlist/by-product/${productId}/`, {
         method: 'DELETE',
-        headers,
+        allowGuest: false,
       });
       setItems((prev) => prev.filter((it) => it.product.id !== productId));
+      queryClient.invalidateQueries({ queryKey: commerceKeys.wishlist });
       toast.success('Removed from wishlist.');
       window.dispatchEvent(new Event('wishlist:updated'));
     } catch {
@@ -149,19 +140,20 @@ export default function WishlistPage() {
     if (!isSignedIn) {
       localWishlist.clearWishlist();
       setItems([]);
+      window.dispatchEvent(new Event('wishlist:updated'));
       return;
     }
     try {
-      const headers = buildFirebaseHeaders(user);
       await Promise.allSettled(
         items.map((it) =>
           http(`/api/wishlist/by-product/${it.product.id}/`, {
             method: 'DELETE',
-            headers,
+            allowGuest: false,
           })
         )
       );
       setItems([]);
+      queryClient.invalidateQueries({ queryKey: commerceKeys.wishlist });
       toast.success('Wishlist cleared.');
       window.dispatchEvent(new Event('wishlist:updated'));
     } catch {

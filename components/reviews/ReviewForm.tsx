@@ -133,6 +133,7 @@ export default function ReviewForm({ productId }: { productId: string | number }
   const [eligibility, setEligibility] = useState<ReviewEligibility | null>(null);
   const [showAll, setShowAll] = useState(false);
   const mountedRef = useRef(true);
+  const loadKeyRef = useRef('');
 
   useEffect(() => {
     mountedRef.current = true;
@@ -181,6 +182,10 @@ export default function ReviewForm({ productId }: { productId: string | number }
   // initial + user change
   useEffect(() => {
     let cancelled = false;
+    const loadKey = `${numericProductId}:${identityKey}`;
+    if (loadKeyRef.current === loadKey) return;
+    loadKeyRef.current = loadKey;
+
     (async () => {
       const currentEligibility = await fetchEligibility();
       if (!cancelled) await fetchReviews(currentEligibility);

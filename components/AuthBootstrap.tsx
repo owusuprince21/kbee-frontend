@@ -1,9 +1,9 @@
 'use client';
 import { useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth, clearLegacyAuthStorage, configurePrivateAuthPersistence, toSafeUser } from '@/lib/firebase';
+import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
+import { auth, clearLegacyAuthStorage, configurePrivateAuthPersistence } from '@/lib/firebase';
 import { useAuthStore } from '@/store/authStore';
-import { clearGuestId, http } from '@/lib/api/http';
+import { clearGuestId, getStoredGuestId, http } from '@/lib/api/http';
 import type { User } from '@/lib/types';
 
 function userFromCustomer(customer: any): User {
@@ -13,6 +13,20 @@ function userFromCustomer(customer: any): User {
     displayName: customer.full_name || '',
     photoURL: customer.photo_url || '',
   };
+}
+
+async function syncFirebaseCustomer(firebaseUser: FirebaseUser, customerPayload: Record<string, string>) {
+  const token = await firebaseUser.getIdToken();
+  const guestId = getStoredGuestId();
+  return http('/api/customers/me/', {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(guestId ? { 'X-Guest-ID': guestId } : {}),
+    },
+    allowGuest: false,
+    body: customerPayload,
+  });
 }
 
 export default function AuthBootstrap() {
@@ -53,14 +67,12 @@ export default function AuthBootstrap() {
           }
 
           try {
-            const customer = await http('/api/customers/me/', {
-              method: 'PATCH',
-              body: {
-                email: firebaseUser.email || '',
-                full_name: firebaseUser.displayName || '',
-                photo_url: firebaseUser.photoURL || '',
-              },
-            });
+            const payload = {
+              email: firebaseUser.email || '',
+              full_name: firebaseUser.displayName || '',
+              photo_url: firebaseUser.photoURL || '',
+            };
+            const customer = await syncFirebaseCustomer(firebaseUser, payload);
             if (!active) return;
             setUser(userFromCustomer(customer));
             setToken(null);
@@ -70,9 +82,8 @@ export default function AuthBootstrap() {
             window.dispatchEvent(new Event('wishlist:updated'));
           } catch {
             if (!active) return;
-            setUser(toSafeUser(firebaseUser));
+            setUser(null);
             setToken(null);
-            clearGuestId();
             setAuthReady(true);
           }
         });

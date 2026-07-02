@@ -29,6 +29,11 @@ function getGuestId() {
   return guestId;
 }
 
+export function getStoredGuestId() {
+  if (typeof window === 'undefined') return '';
+  return window.localStorage.getItem(GUEST_ID_KEY) || '';
+}
+
 export function clearGuestId() {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(GUEST_ID_KEY);

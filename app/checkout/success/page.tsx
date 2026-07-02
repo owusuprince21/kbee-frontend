@@ -16,6 +16,7 @@ type VerifyResp = {
   payment_status?: string;
   receipt_url?: string | null;
 };
+const CHECKOUT_CART_SNAPSHOT_KEY = 'kbee_checkout_cart_snapshot';
 
 function CheckoutSuccessContent() {
   const router = useRouter();
@@ -38,7 +39,7 @@ function CheckoutSuccessContent() {
     try {
       localStorage.removeItem('kbee_momo_tx_ref');
       localStorage.removeItem('kbee_card_tx_ref');
-      ['cart', 'cartItems', 'kbee-cart', 'cart-storage'].forEach((key) => localStorage.removeItem(key));
+      ['cart', 'cartItems', 'kbee-cart', 'cart-storage', CHECKOUT_CART_SNAPSHOT_KEY].forEach((key) => localStorage.removeItem(key));
       useCartStore.getState().clearCart();
       window.dispatchEvent(new Event('cart:cleared'));
       window.dispatchEvent(new Event('cart:updated'));

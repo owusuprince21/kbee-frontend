@@ -15,26 +15,6 @@ import { http } from '@/lib/api/http';
 
 type Props = { isOpen: boolean; onClose: () => void };
 
-/* ---------- identity helpers ---------- */
-type AnyRec = Record<string, any>;
-function extractUserIdentity(u: unknown) {
-  const anyU = (u || {}) as AnyRec;
-  const uid = anyU.uid ?? anyU.id ?? anyU.firebase_uid ?? null;
-  const email = anyU.email ?? null;
-  const name = anyU.displayName ?? anyU.full_name ?? anyU.name ?? null;
-  const photo = anyU.photoURL ?? anyU.photo_url ?? null;
-  return { uid, email, name, photo };
-}
-function buildFirebaseHeaders(user: unknown): HeadersInit {
-  const { uid, email, name, photo } = extractUserIdentity(user);
-  const h: Record<string, string> = {};
-  const firebaseUid = uid == null ? '' : String(uid);
-  if (firebaseUid && !firebaseUid.startsWith('customer:')) h['X-Firebase-UID'] = firebaseUid;
-  if (email) h['X-User-Email'] = String(email);
-  if (name) h['X-User-Name'] = String(name);
-  if (photo) h['X-User-Photo'] = String(photo);
-  return h;
-}
 const toNum = (n: unknown) => (Number.isFinite(Number(n)) ? Number(n) : 0);
 function stockLimit(product?: ServerProduct) {
   if (product?.stock_quantity === undefined || product?.stock_quantity === null || product?.stock_quantity === '') {
@@ -67,7 +47,7 @@ type ServerCartItem = {
 type ServerCart = { id: number; items: ServerCartItem[]; subtotal?: string | number };
 
 export default function CartDrawer({ isOpen, onClose }: Props) {
-  const { user } = useAuthStore();
+  const { user, hasHydrated, authReady } = useAuthStore();
 
   // local store only used for one-time migration
   const localStore = useCartStore();
@@ -80,10 +60,11 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
   useEffect(() => setMounted(true), []);
 
-  const headers = useMemo(() => buildFirebaseHeaders(user), [user]);
+  const headers = useMemo<HeadersInit>(() => ({}), []);
+  const allowGuestRequests = !user;
 
   const fetchServerCart = async () => {
-    const data = await http<ServerCart>('/api/cart/', { headers });
+    const data = await http<ServerCart>('/api/cart/', { headers, allowGuest: allowGuestRequests });
     setCart(data);
   };
 
@@ -102,7 +83,8 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
         await http('/api/cart/add_item/', {
           method: 'POST',
           headers,
-          body: { product: productId, quantity: qty },
+          allowGuest: allowGuestRequests,
+          body: { product_id: productId, quantity: qty },
         });
       }
       await fetchServerCart();
@@ -123,6 +105,10 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   useEffect(() => {
     if (!isOpen) return;
     (async () => {
+      if (!hasHydrated || (user && !authReady)) {
+        setLoading(true);
+        return;
+      }
       setLoading(true);
       try {
         await fetchServerCart();
@@ -133,7 +119,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, user]);
+  }, [authReady, hasHydrated, isOpen, user]);
 
   // server-backed actions
   const changeQty = async (itemId: number, qty: number, maxQty?: number | null) => {
@@ -142,22 +128,27 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
     const data = await http<ServerCart>(`/api/cart/update_item/${itemId}/`, {
       method: 'PATCH',
       headers,
+      allowGuest: allowGuestRequests,
       body: { quantity: qty },
     });
     setCart(data);
+    window.dispatchEvent(new Event('cart:updated'));
   };
 
   const removeItem = async (itemId: number) => {
     const data = await http<ServerCart>(`/api/cart/remove_item/${itemId}/`, {
       method: 'DELETE',
       headers,
+      allowGuest: allowGuestRequests,
     });
     setCart(data);
+    window.dispatchEvent(new Event(data.items?.length ? 'cart:updated' : 'cart:cleared'));
   };
 
   const clearServerCart = async () => {
-    await http('/api/cart/clear/', { method: 'POST', headers });
+    await http('/api/cart/clear/', { method: 'POST', headers, allowGuest: allowGuestRequests });
     await fetchServerCart();
+    window.dispatchEvent(new Event('cart:cleared'));
   };
 
   const items = cart?.items ?? [];

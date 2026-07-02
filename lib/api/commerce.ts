@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { http, type Paginated } from './http';
+import { useAuthStore } from '@/store/authStore';
 
 export type ApiCartItem = {
   id: number;
@@ -31,32 +32,44 @@ export type ApiWishlistItem = {
 
 export const commerceKeys = {
   cart: ['commerce', 'cart'] as const,
+  cartFor: (owner: string) => ['commerce', 'cart', owner] as const,
   wishlist: ['commerce', 'wishlist'] as const,
+  wishlistFor: (owner: string) => ['commerce', 'wishlist', owner] as const,
 };
 
 export function useCartQuery() {
+  const { user, hasHydrated, authReady } = useAuthStore();
+  const userKey = user as any;
+  const owner = user ? `user:${userKey.uid || user.id || user.email || 'account'}` : 'guest';
+  const allowGuest = !user;
+
   return useQuery({
-    queryKey: commerceKeys.cart,
+    queryKey: commerceKeys.cartFor(owner),
     queryFn: async () => {
       try {
-        return await http<ApiCart>('/api/cart/');
+        return await http<ApiCart>('/api/cart/', { allowGuest });
       } catch {
         return emptyCart;
       }
     },
+    enabled: hasHydrated && (!user || authReady),
     retry: false,
   });
 }
 
 export function useAddToCartMutation() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const allowGuest = !user;
   return useMutation({
     mutationFn: ({ productId, quantity = 1 }: { productId: number; quantity?: number }) =>
       http<ApiCart>('/api/cart/add_item/', {
         method: 'POST',
+        allowGuest,
         body: { product_id: productId, quantity },
       }),
-    onSuccess: () => {
+    onSuccess: (cart) => {
+      qc.setQueriesData({ queryKey: commerceKeys.cart }, cart);
       qc.invalidateQueries({ queryKey: commerceKeys.cart });
       window.dispatchEvent(new Event('cart:updated'));
     },
@@ -64,12 +77,17 @@ export function useAddToCartMutation() {
 }
 
 export function useWishlistQuery() {
+  const { user, hasHydrated, authReady } = useAuthStore();
+  const userKey = user as any;
+  const owner = user ? `user:${userKey.uid || user.id || user.email || 'account'}` : 'guest';
+  const allowGuest = !user;
+
   return useQuery({
-    queryKey: commerceKeys.wishlist,
+    queryKey: commerceKeys.wishlistFor(owner),
     queryFn: async () => {
       let data: ApiWishlistItem[] | Paginated<ApiWishlistItem>;
       try {
-        data = await http<ApiWishlistItem[] | Paginated<ApiWishlistItem>>('/api/wishlist/');
+        data = await http<ApiWishlistItem[] | Paginated<ApiWishlistItem>>('/api/wishlist/', { allowGuest });
       } catch {
         return [];
       }
@@ -77,16 +95,20 @@ export function useWishlistQuery() {
         ? (data as Paginated<ApiWishlistItem>).results
         : (data as ApiWishlistItem[]);
     },
+    enabled: hasHydrated && (!user || authReady),
     retry: false,
   });
 }
 
 export function useAddToWishlistMutation() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const allowGuest = !user;
   return useMutation({
     mutationFn: (productId: number) =>
       http<ApiWishlistItem>('/api/wishlist/', {
         method: 'POST',
+        allowGuest,
         body: { product_id: productId },
       }),
     onSuccess: () => {
@@ -98,9 +120,11 @@ export function useAddToWishlistMutation() {
 
 export function useRemoveWishlistProductMutation() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const allowGuest = !user;
   return useMutation({
     mutationFn: (productId: number) =>
-      http<void>(`/api/wishlist/by-product/${productId}/`, { method: 'DELETE' }),
+      http<void>(`/api/wishlist/by-product/${productId}/`, { method: 'DELETE', allowGuest }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: commerceKeys.wishlist });
       window.dispatchEvent(new Event('wishlist:updated'));

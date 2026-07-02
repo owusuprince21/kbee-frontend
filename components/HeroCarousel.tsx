@@ -23,12 +23,17 @@ function isHeroItem(p: Product) {
 }
 
 export default function HeroCarousel({ products }: HeroCarouselProps) {
+  const [mounted, setMounted] = useState(false);
   const slides = useMemo(() => {
     const flagged = (products || []).filter(isHeroItem);
     return flagged.length ? flagged : (products || []);
   }, [products]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!slides.length) return;
@@ -49,7 +54,7 @@ export default function HeroCarousel({ products }: HeroCarouselProps) {
     });
   }, [slides]);
 
-  if (!slides.length) return null;
+  if (!mounted || !slides.length) return null;
 
   const goToPrevious = () => setCurrentIndex((p) => (p - 1 + slides.length) % slides.length);
   const goToNext = () => setCurrentIndex((p) => (p + 1) % slides.length);
