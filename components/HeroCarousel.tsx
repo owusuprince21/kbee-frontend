@@ -36,6 +36,19 @@ export default function HeroCarousel({ products }: HeroCarouselProps) {
     return () => clearInterval(id);
   }, [slides.length]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    slides.forEach((slide) => {
+      const src =
+        normalizeUrl((slide as any).main_image) ||
+        normalizeUrl(slide.images?.[0]?.image);
+      if (!src) return;
+      const img = new window.Image();
+      img.decoding = 'async';
+      img.src = src;
+    });
+  }, [slides]);
+
   if (!slides.length) return null;
 
   const goToPrevious = () => setCurrentIndex((p) => (p - 1 + slides.length) % slides.length);

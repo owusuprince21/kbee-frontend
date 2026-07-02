@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import HeroCarousel from '@/components/HeroCarousel';
@@ -48,6 +49,17 @@ type TestimonialItem = {
 };
 
 const REVIEWS_ENDPOINT = '/api/reviews/?page_size=8&ordering=-created_at';
+const HOME_QUERY_KEY = ['home', 'landing'] as const;
+const HOME_STALE_TIME = 1000 * 60 * 10;
+
+type HomeData = {
+  heroProducts: Product[];
+  newArrivals: Product[];
+  bestSelling: Product[];
+  categories: ApiCategory[];
+  testimonials: TestimonialItem[];
+  hotItems: HotItemAPI[];
+};
 
 const toNum = (v: unknown): number | undefined => {
   if (v == null) return undefined;
@@ -58,91 +70,94 @@ const toNum = (v: unknown): number | undefined => {
 const safeUrl = (u?: string | null) =>
   u ? (u.startsWith('http://') ? u.replace(/^http:\/\//, 'https://') : u) : undefined;
 
+function mapTestimonials(reviewsRes: any): TestimonialItem[] {
+  const reviews: ReviewApi[] = (reviewsRes?.results ?? reviewsRes ?? []) as ReviewApi[];
+  const seenReviews = new Set<string>();
+  return reviews
+    .filter((r) => {
+      const key = r.id ? `id:${r.id}` : `${r.customer_name || r.customer?.full_name || ''}:${r.comment || ''}`;
+      if (seenReviews.has(key)) return false;
+      seenReviews.add(key);
+      return true;
+    })
+    .map((r) => ({
+      id: r.id,
+      comment: String(r.comment ?? ''),
+      rating: Number(r.rating) || 0,
+      customer: r.customer ?? null,
+      full_name: r.customer?.full_name ?? r.customer_name ?? null,
+      photo_url: r.customer?.photo_url ?? null,
+      product: r.product ?? null,
+      product_name: r.product_name ?? null,
+      product_slug: r.product_slug ?? null,
+      product_image: r.product_image ?? null,
+    }));
+}
+
+async function fetchHomeData(): Promise<HomeData> {
+  const [
+    heroRes,
+    arrivalsRes,
+    bestRes,
+    catsRes,
+    reviewsRes,
+    hotItemsRes,
+  ] = await Promise.all([
+    listProducts({ page_size: 8, ordering: '-updated_at' }),
+    listProducts({ page_size: 12, ordering: '-created_at', ...({ is_new_arrival: true } as any) }),
+    listProducts({ page_size: 12, ...({ is_best_seller: true } as any) }),
+    listCategories(),
+    http<any>(REVIEWS_ENDPOINT).catch(() => ({ results: [] })),
+    listHotItems('active'),
+  ]);
+
+  const heroProducts = heroRes.results ?? (heroRes as any as Product[]) ?? [];
+  const arrivalsList = arrivalsRes.results?.length ? arrivalsRes.results : heroProducts;
+  const bestList = bestRes.results?.length ? bestRes.results : heroProducts;
+  const hotItems = Array.isArray(hotItemsRes) ? hotItemsRes.filter(h => h.is_running !== false) : [];
+
+  return {
+    heroProducts,
+    newArrivals: arrivalsList.slice(0, 12),
+    bestSelling: bestList.slice(0, 12),
+    categories: Array.isArray(catsRes) ? catsRes : [],
+    testimonials: mapTestimonials(reviewsRes),
+    hotItems,
+  };
+}
+
 export default function Home() {
-  const [heroProducts, setHeroProducts] = useState<Product[]>([]);
-  const [newArrivals, setNewArrivals]   = useState<Product[]>([]);
-  const [bestSelling, setBestSelling]   = useState<Product[]>([]);
-  const [categories, setCategories]     = useState<ApiCategory[]>([]);
-  const [testimonials, setTestimonials] = useState<TestimonialItem[]>([]);
-  const [hotItems, setHotItems]         = useState<HotItemAPI[]>([]);
+  const homeQuery = useQuery({
+    queryKey: HOME_QUERY_KEY,
+    queryFn: fetchHomeData,
+    staleTime: HOME_STALE_TIME,
+    gcTime: 1000 * 60 * 60 * 6,
+    refetchOnMount: false,
+  });
 
   useEffect(() => {
-    let cancelled = false;
+    if (homeQuery.isError) {
+      toast.error((homeQuery.error as any)?.message || 'Failed to load homepage data.');
+    }
+  }, [homeQuery.error, homeQuery.isError]);
 
-    (async () => {
-      try {
-        const [
-          heroRes,
-          arrivalsRes,
-          bestRes,
-          catsRes,
-          reviewsRes,
-          hotItemsRes,
-        ] = await Promise.all([
-          listProducts({ page_size: 8,  ordering: '-updated_at' }),
-          listProducts({ page_size: 12, ordering: '-created_at', ...( { is_new_arrival: true } as any) }),
-          listProducts({ page_size: 12, ...( { is_best_seller: true } as any) }),
-          listCategories(),
-          http<any>(REVIEWS_ENDPOINT).catch(() => ({ results: [] })),
-          listHotItems('active'),
-        ]);
+  const homeData: HomeData = homeQuery.data ?? {
+    heroProducts: [],
+    newArrivals: [],
+    bestSelling: [],
+    categories: [],
+    testimonials: [],
+    hotItems: [],
+  };
 
-        if (cancelled) return;
-
-        // products
-        const heroList = heroRes.results ?? (heroRes as any as Product[]) ?? [];
-        setHeroProducts(heroList);
-
-        const arrivalsList = arrivalsRes.results?.length ? arrivalsRes.results : heroList;
-        setNewArrivals(arrivalsList.slice(0, 12));
-
-        const bestList = bestRes.results?.length ? bestRes.results : heroList;
-        setBestSelling(bestList.slice(0, 12));
-
-        // categories
-        setCategories(Array.isArray(catsRes) ? catsRes : []);
-
-        // testimonials
-        const reviews: ReviewApi[] = (reviewsRes?.results ?? reviewsRes ?? []) as ReviewApi[];
-        const seenReviews = new Set<string>();
-        setTestimonials(
-          reviews
-            .filter((r) => {
-              const key = r.id ? `id:${r.id}` : `${r.customer_name || r.customer?.full_name || ''}:${r.comment || ''}`;
-              if (seenReviews.has(key)) return false;
-              seenReviews.add(key);
-              return true;
-            })
-            .map((r) => ({
-              id: r.id,
-              comment: String(r.comment ?? ''),
-              rating: Number(r.rating) || 0,
-              customer: r.customer ?? null,
-              full_name: r.customer?.full_name ?? r.customer_name ?? null,
-              photo_url: r.customer?.photo_url ?? null,
-              product: r.product ?? null,
-              product_name: r.product_name ?? null,
-              product_slug: r.product_slug ?? null,
-              product_image: r.product_image ?? null,
-            }))
-        );
-
-        // hot items
-        const cleaned = Array.isArray(hotItemsRes) ? hotItemsRes.filter(h => h.is_running !== false) : [];
-        setHotItems(cleaned);
-
-        if (process.env.NODE_ENV !== 'production') {
-          // helpful dev log
-          // eslint-disable-next-line no-console
-          console.debug('[hotItems]', cleaned);
-        }
-      } catch (e: any) {
-        toast.error(e?.message || 'Failed to load homepage data.');
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, []);
+  const {
+    heroProducts = [],
+    newArrivals = [],
+    bestSelling = [],
+    categories = [],
+    testimonials = [],
+    hotItems = [],
+  } = homeData;
 
   return (
     <main>

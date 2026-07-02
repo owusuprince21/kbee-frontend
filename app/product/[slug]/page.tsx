@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -42,6 +43,32 @@ import ReviewForm from '@/components/reviews/ReviewForm';
 function normalizeUrl(u?: string | null) {
   if (!u) return undefined;
   return u.startsWith('http://') ? u.replace(/^http:\/\//, 'https://') : u;
+}
+
+function sameProduct(product: Product, idOrSlug?: string) {
+  if (!idOrSlug) return false;
+  return String(product.slug || '') === idOrSlug || String(product.id) === idOrSlug;
+}
+
+function findProductInValue(value: unknown, idOrSlug?: string): Product | undefined {
+  if (!value || !idOrSlug) return undefined;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findProductInValue(item, idOrSlug);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  if (typeof value !== 'object') return undefined;
+  const record = value as any;
+  if (record.id && sameProduct(record as Product, idOrSlug)) return record as Product;
+  return (
+    findProductInValue(record.results, idOrSlug) ||
+    findProductInValue(record.heroProducts, idOrSlug) ||
+    findProductInValue(record.newArrivals, idOrSlug) ||
+    findProductInValue(record.bestSelling, idOrSlug) ||
+    findProductInValue(record.products, idOrSlug)
+  );
 }
 
 function humanizeKey(k: string) {
@@ -231,57 +258,73 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const params = useParams();
   const slug = params?.slug as string | undefined;
+  const queryClient = useQueryClient();
 
-  const [product, setProduct] = useState<Product | null>(null);
-  const [related, setRelated] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const [displayedCover, setDisplayedCover] = useState('/placeholder.jpg');
 
   const [openLightbox, setOpenLightbox] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const addToCart = useAddToCartMutation();
   const addToWishlist = useAddToWishlistMutation();
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!slug) return;
-
-    (async () => {
-      try {
-        setLoading(true);
-        const p = await getProduct(slug);
-        if (cancelled) return;
-        setProduct(p);
-        setQuantity(1);
-        addRecentlyViewed(p);
-        const brandSlug = String((p as any)?.brand || '').trim();
-        if (brandSlug) {
-          listProducts({ brand: brandSlug, page_size: 16, ordering: '-updated_at' })
-            .then((data) => {
-              const rows = Array.isArray((data as any)?.results) ? (data as any).results : [];
-              const items = rows.filter((item: Product) => item.id !== p.id);
-              if (!cancelled) setRelated(items);
-            })
-            .catch(() => {
-              if (!cancelled) setRelated([]);
-            });
-        } else {
-          setRelated([]);
-        }
-      } catch (e: any) {
-        toast.error(e?.message || 'Failed to load product');
-        router.push('/shop');
-      } finally {
-        if (!cancelled) setLoading(false);
+  const productQuery = useQuery({
+    queryKey: ['product', slug],
+    queryFn: () => getProduct(slug as string),
+    enabled: Boolean(slug),
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 60 * 6,
+    refetchOnMount: false,
+    placeholderData: () => {
+      const cachedProduct = queryClient.getQueryData<Product>(['product', slug]);
+      if (cachedProduct) return cachedProduct;
+      const publicQueries = queryClient.getQueriesData({ queryKey: ['home'] });
+      for (const [, data] of publicQueries) {
+        const found = findProductInValue(data, slug);
+        if (found) return found;
       }
-    })();
+      const productLists = queryClient.getQueriesData({ queryKey: ['products'] });
+      for (const [, data] of productLists) {
+        const found = findProductInValue(data, slug);
+        if (found) return found;
+      }
+      return undefined;
+    },
+  });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [slug, router]);
+  const product = productQuery.data ?? null;
+  const brandSlug = String((product as any)?.brand || '').trim();
+
+  const relatedQuery = useQuery({
+    queryKey: ['related-products', brandSlug, product?.id],
+    queryFn: async () => {
+      const data = await listProducts({ brand: brandSlug, page_size: 16, ordering: '-updated_at' });
+      const rows = Array.isArray((data as any)?.results) ? (data as any).results : [];
+      return rows.filter((item: Product) => item.id !== product?.id);
+    },
+    enabled: Boolean(product?.id && brandSlug),
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 60 * 6,
+    refetchOnMount: false,
+  });
+  const related: Product[] = relatedQuery.data ?? [];
+
+  useEffect(() => {
+    if (productQuery.isError) {
+      toast.error((productQuery.error as any)?.message || 'Failed to load product');
+      router.push('/shop');
+    }
+  }, [productQuery.error, productQuery.isError, router]);
+
+  useEffect(() => {
+    if (!product) return;
+    setQuantity(1);
+    setActiveIndex(0);
+    setLightboxIndex(0);
+    addRecentlyViewed(product);
+  }, [product?.id]);
 
   const gallery = useMemo(() => {
     if (!product) return [];
@@ -291,7 +334,7 @@ export default function ProductDetailPage() {
 
     const extra =
       Array.isArray((product as any).gallery_images) && (product as any).gallery_images.length > 0
-        ? (product as any).gallery_images.map((g: any) => normalizeUrl(g?.image)).filter(Boolean)
+        ? (product as any).gallery_images.map((g: any) => normalizeUrl(g?.image_url ?? g?.image)).filter(Boolean)
         : Array.isArray((product as any).images)
           ? (product as any).images.map((im: any) => normalizeUrl(im?.image)).filter(Boolean)
           : [];
@@ -301,6 +344,40 @@ export default function ProductDetailPage() {
   }, [product]);
 
   const cover = gallery[activeIndex] || '/placeholder.jpg';
+
+  useEffect(() => {
+    if (activeIndex >= gallery.length) setActiveIndex(0);
+  }, [activeIndex, gallery.length]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    gallery.forEach((src) => {
+      const img = new window.Image();
+      img.decoding = 'async';
+      img.src = src;
+    });
+  }, [gallery]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setDisplayedCover(cover);
+      return;
+    }
+    let cancelled = false;
+    const img = new window.Image();
+    img.decoding = 'async';
+    img.onload = () => {
+      if (!cancelled) setDisplayedCover(cover);
+    };
+    img.onerror = () => {
+      if (!cancelled) setDisplayedCover(cover);
+    };
+    img.src = cover;
+    if (img.complete) setDisplayedCover(cover);
+    return () => {
+      cancelled = true;
+    };
+  }, [cover]);
 
   const price = Number(product?.price || 0);
   const discount = product?.discount_price != null ? Number(product.discount_price) : null;
@@ -397,7 +474,7 @@ export default function ProductDetailPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [openLightbox, gallery.length]);
 
-  if (loading) {
+  if (productQuery.isLoading && !product) {
     return (
       <div className="container mx-auto px-4 py-10">
         <div className="grid gap-8 lg:grid-cols-2">
@@ -431,7 +508,7 @@ export default function ProductDetailPage() {
           >
             <div className="relative h-[260px] sm:h-[300px] lg:h-[340px]">
               <Image
-                src={cover}
+                src={displayedCover}
                 alt={product.name}
                 fill
                 priority

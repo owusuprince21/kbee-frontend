@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -11,6 +13,7 @@ import { formatGHS } from '@/lib/currencyformat';
 import { addRecentlyViewedShallow } from '@/lib/recentlyViewed';
 import { useAddToCartMutation } from '@/lib/api/commerce';
 import { ApiError } from '@/lib/api/http';
+import { getProduct } from '@/lib/api/products';
 
 interface ProductCardProps {
   product: Product & {
@@ -45,9 +48,11 @@ function getApiMessage(err: unknown, fallback: string) {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
+  const queryClient = useQueryClient();
   const addToCart = useAddToCartMutation();
   const slugOrId = product.slug || String(product.id);
   const href = `/product/${slugOrId}`;
+  const cover = getCover(product);
   const inStock =
     product.is_in_stock ??
     (typeof product.stock_quantity === 'number' ? product.stock_quantity > 0 : true);
@@ -62,6 +67,20 @@ export default function ProductCard({ product }: ProductCardProps) {
     : 0;
 
   const finalPrice = hasDiscount ? discount! : price;
+  const warmProduct = useCallback(() => {
+    queryClient.setQueryData(['product', slugOrId], product);
+    queryClient.prefetchQuery({
+      queryKey: ['product', slugOrId],
+      queryFn: () => getProduct(slugOrId),
+      staleTime: 1000 * 60 * 10,
+    }).catch(() => {});
+
+    if (typeof window !== 'undefined' && cover) {
+      const img = new window.Image();
+      img.decoding = 'async';
+      img.src = cover;
+    }
+  }, [cover, product, queryClient, slugOrId]);
 
   return (
     <div className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 transition hover:shadow-lg">
@@ -69,12 +88,15 @@ export default function ProductCard({ product }: ProductCardProps) {
       <Link
         href={href}
         onClick={() => addRecentlyViewedShallow(product)}
+        onMouseEnter={warmProduct}
+        onFocus={warmProduct}
+        onTouchStart={warmProduct}
         className="block"
       >
         {/* Image */}
         <div className="relative aspect-[4/3] bg-slate-50">
           <Image
-            src={getCover(product)}
+            src={cover}
             alt={product.name}
             fill
             className="object-contain transition-transform duration-300 group-hover:scale-[1.04]"

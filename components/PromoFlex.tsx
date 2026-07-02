@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Image from 'next/image';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { listProducts } from '@/lib/api/products';
 import type { Product } from '@/lib/types';
@@ -92,34 +93,26 @@ function fallbackPromo(): BrandPromo {
 export default function PromoFlex({
   promos: promosProp,
 }: { promos?: BrandPromo[] }) {
-  const [fetched, setFetched] = useState<BrandPromo[] | null>(null);
-
-  useEffect(() => {
-    if (promosProp?.length) return; 
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const data = await listProducts({
-          category: 'laptops',
-          page_size: 24,
-          ordering: '-updated_at',
-        });
-        const rows = Array.isArray((data as any)?.results) ? (data as any).results : [];
-        if (!cancelled) setFetched(mapProductsToPromos(rows));
-      } catch {
-        if (!cancelled) setFetched([]);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [promosProp]);
+  const promoQuery = useQuery({
+    queryKey: ['products', 'brand-promos', 'laptops'],
+    queryFn: async () => {
+      const data = await listProducts({
+        category: 'laptops',
+        page_size: 24,
+        ordering: '-updated_at',
+      });
+      const rows = Array.isArray((data as any)?.results) ? (data as any).results : [];
+      return mapProductsToPromos(rows);
+    },
+    enabled: !promosProp?.length,
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 60 * 6,
+    refetchOnMount: false,
+  });
 
   const promos: BrandPromo[] = useMemo(() => {
     if (promosProp?.length) return promosProp.filter(validPromo).slice(0, 2);
-    if (fetched?.length) return fetched.filter(validPromo).slice(0, 2);
+    if (promoQuery.data?.length) return promoQuery.data.filter(validPromo).slice(0, 2);
 
     // Fallback to two static promos if API has nothing yet
     return [
@@ -133,7 +126,7 @@ export default function PromoFlex({
         categorySlug: 'laptops',
       },
     ];
-  }, [promosProp, fetched]);
+  }, [promosProp, promoQuery.data]);
 
   // Two soft backgrounds if none provided
   const fallbacks = ['#dff0f6', '#ece8df'];
