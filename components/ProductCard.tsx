@@ -72,7 +72,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     queryClient.prefetchQuery({
       queryKey: ['product', slugOrId],
       queryFn: () => getProduct(slugOrId),
-      staleTime: 1000 * 60 * 10,
+      staleTime: 0,
     }).catch(() => {});
 
     if (typeof window !== 'undefined' && cover) {

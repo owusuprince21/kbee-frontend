@@ -17,10 +17,10 @@ function createQueryClient() {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 1000 * 60 * 10,
+        staleTime: 0,
         gcTime: 1000 * 60 * 60 * 6,
-        refetchOnMount: false,
-        refetchOnReconnect: false,
+        refetchOnMount: true,
+        refetchOnReconnect: true,
         refetchOnWindowFocus: false,
       },
     },

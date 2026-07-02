@@ -50,7 +50,7 @@ type TestimonialItem = {
 
 const REVIEWS_ENDPOINT = '/api/reviews/?page_size=8&ordering=-created_at';
 const HOME_QUERY_KEY = ['home', 'landing'] as const;
-const HOME_STALE_TIME = 1000 * 60 * 10;
+const HOME_STALE_TIME = 0;
 
 type HomeData = {
   heroProducts: Product[];
@@ -132,7 +132,7 @@ export default function Home() {
     queryFn: fetchHomeData,
     staleTime: HOME_STALE_TIME,
     gcTime: 1000 * 60 * 60 * 6,
-    refetchOnMount: false,
+    refetchOnMount: true,
   });
 
   useEffect(() => {

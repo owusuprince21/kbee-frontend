@@ -274,9 +274,9 @@ export default function ProductDetailPage() {
     queryKey: ['product', slug],
     queryFn: () => getProduct(slug as string),
     enabled: Boolean(slug),
-    staleTime: 1000 * 60 * 10,
+    staleTime: 0,
     gcTime: 1000 * 60 * 60 * 6,
-    refetchOnMount: false,
+    refetchOnMount: true,
     placeholderData: () => {
       const cachedProduct = queryClient.getQueryData<Product>(['product', slug]);
       if (cachedProduct) return cachedProduct;
@@ -305,9 +305,9 @@ export default function ProductDetailPage() {
       return rows.filter((item: Product) => item.id !== product?.id);
     },
     enabled: Boolean(product?.id && brandSlug),
-    staleTime: 1000 * 60 * 10,
+    staleTime: 0,
     gcTime: 1000 * 60 * 60 * 6,
-    refetchOnMount: false,
+    refetchOnMount: true,
   });
   const related: Product[] = relatedQuery.data ?? [];
 

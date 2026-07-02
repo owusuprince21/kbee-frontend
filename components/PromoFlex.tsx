@@ -105,9 +105,9 @@ export default function PromoFlex({
       return mapProductsToPromos(rows);
     },
     enabled: !promosProp?.length,
-    staleTime: 1000 * 60 * 10,
+    staleTime: 0,
     gcTime: 1000 * 60 * 60 * 6,
-    refetchOnMount: false,
+    refetchOnMount: true,
   });
 
   const promos: BrandPromo[] = useMemo(() => {
