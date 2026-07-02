@@ -29,6 +29,11 @@ function getGuestId() {
   return guestId;
 }
 
+export function clearGuestId() {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(GUEST_ID_KEY);
+}
+
 async function getFirebaseIdentity() {
   if (typeof window === 'undefined') return null;
   try {
@@ -52,11 +57,8 @@ async function applyIdentityHeaders(headers: Headers) {
 
   if (identity?.token) {
     headers.set('Authorization', `Bearer ${identity.token}`);
+    return;
   }
-  if (identity?.uid) headers.set('X-Firebase-UID', String(identity.uid));
-  if (identity?.email) headers.set('X-User-Email', String(identity.email));
-  if (identity?.name) headers.set('X-User-Name', String(identity.name));
-  if (identity?.photo) headers.set('X-User-Photo', String(identity.photo));
 
   const guestId = getGuestId();
   if (guestId) headers.set('X-Guest-ID', guestId);

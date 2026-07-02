@@ -9,7 +9,7 @@ import {
 } from 'firebase/auth';
 import { auth, configurePrivateAuthPersistence, provider, toSafeUser } from '@/lib/firebase';
 import { useAuthStore } from '@/store/authStore';
-import { http } from '@/lib/api/http';
+import { clearGuestId, http } from '@/lib/api/http';
 import type { User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -70,6 +70,7 @@ export default function SignInPage() {
             }
             setUser(toSafeUser(u));
             setToken(null);
+            clearGuestId();
             setInitializing(false);
           } catch (err) {
             // If something goes wrong here, still allow the UI
@@ -106,6 +107,7 @@ export default function SignInPage() {
       });
       setUser(userFromCustomer(customer));
       setToken(null);
+      clearGuestId();
       toast.success('Signed in successfully!');
       router.replace(nextUrl);
     } catch (err: any) {

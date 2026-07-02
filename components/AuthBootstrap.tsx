@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, clearLegacyAuthStorage, configurePrivateAuthPersistence, toSafeUser } from '@/lib/firebase';
 import { useAuthStore } from '@/store/authStore';
-import { http } from '@/lib/api/http';
+import { clearGuestId, http } from '@/lib/api/http';
 import type { User } from '@/lib/types';
 
 function userFromCustomer(customer: any): User {
@@ -38,6 +38,7 @@ export default function AuthBootstrap() {
               if (!active) return;
               setUser(userFromCustomer(sessionCustomer));
               setToken(null);
+              clearGuestId();
             } catch {
               if (!active) return;
               // Firebase is intentionally memory-only, so after a hard refresh
@@ -63,6 +64,7 @@ export default function AuthBootstrap() {
             if (!active) return;
             setUser(userFromCustomer(customer));
             setToken(null);
+            clearGuestId();
             setAuthReady(true);
             window.dispatchEvent(new Event('cart:updated'));
             window.dispatchEvent(new Event('wishlist:updated'));
@@ -70,6 +72,7 @@ export default function AuthBootstrap() {
             if (!active) return;
             setUser(toSafeUser(firebaseUser));
             setToken(null);
+            clearGuestId();
             setAuthReady(true);
           }
         });
