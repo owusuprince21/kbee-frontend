@@ -52,13 +52,15 @@ async function getFirebaseIdentity() {
   }
 }
 
-async function applyIdentityHeaders(headers: Headers) {
+async function applyIdentityHeaders(headers: Headers, { allowGuest = true }: { allowGuest?: boolean } = {}) {
   const identity = await getFirebaseIdentity();
 
   if (identity?.token) {
     headers.set('Authorization', `Bearer ${identity.token}`);
     return;
   }
+
+  if (!allowGuest) return;
 
   const guestId = getGuestId();
   if (guestId) headers.set('X-Guest-ID', guestId);
@@ -104,7 +106,8 @@ export async function http<T = any>(
     body,
     headers,
     isForm = false,
-  }: { method?: HttpMethod; body?: any; headers?: HeadersInit; isForm?: boolean } = {}
+    allowGuest = true,
+  }: { method?: HttpMethod; body?: any; headers?: HeadersInit; isForm?: boolean; allowGuest?: boolean } = {}
 ): Promise<T> {
   const url = resolveApiUrl(BASE_URL, path);
 
@@ -118,7 +121,7 @@ export async function http<T = any>(
     else if (Array.isArray(headers)) headers.forEach(([k, v]) => h.set(k, v));
     else Object.entries(headers).forEach(([k, v]) => h.set(k, v as string));
   }
-  await applyIdentityHeaders(h);
+  await applyIdentityHeaders(h, { allowGuest });
 
   let res: Response;
   try {

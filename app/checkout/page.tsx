@@ -153,8 +153,9 @@ function readLocalCart(): CartDTO | null {
 export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuthStore();
+  const { user, hasHydrated, authReady } = useAuthStore();
   const me = useMemo(() => extractUserIdentity(user), [user]);
+  const allowGuestRequests = !user;
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [cart, setCart] = useState<CartDTO | null>(null);
@@ -228,7 +229,7 @@ export default function CheckoutPage() {
 
   // helper: refetch server cart
   const fetchServerCart = async (headers: HeadersInit) => {
-    const apiRes = await http<any>(`/api/cart/?_=${Date.now()}`, { headers }); // cache-buster
+    const apiRes = await http<any>(`/api/cart/?_=${Date.now()}`, { headers, allowGuest: allowGuestRequests }); // cache-buster
     return normalizeCart(apiRes);
   };
 
@@ -247,6 +248,7 @@ export default function CheckoutPage() {
         await http('/api/cart/add_item/', {
           method: 'POST',
           headers,
+          allowGuest: allowGuestRequests,
           body: { product_id: pid, quantity: qty },
         });
         posted++;
@@ -265,7 +267,7 @@ export default function CheckoutPage() {
 
     (async () => {
       try {
-        const res = await http<Address[] | Paginated<Address>>('/api/addresses/', { headers });
+        const res = await http<Address[] | Paginated<Address>>('/api/addresses/', { headers, allowGuest: allowGuestRequests });
         const list = unwrapList<Address>(res);
         setAddresses(list);
         const def =
@@ -314,7 +316,7 @@ export default function CheckoutPage() {
         setLoadingCart(false);
       }
     })();
-  }, [user, me.name]);
+  }, [user, me.name, allowGuestRequests]);
 
   // subtotal prefers backend value if present; else sum items
   const subtotal = useMemo(() => {
@@ -401,6 +403,7 @@ export default function CheckoutPage() {
       await http('/api/customers/me/', {
         method: 'PATCH',
         headers,
+        allowGuest: allowGuestRequests,
         body: {
           email: guestEmail.trim() || me.email || '',
           full_name: guestAddress.full_name.trim(),
@@ -413,6 +416,7 @@ export default function CheckoutPage() {
       await http(`/api/addresses/${addressId}/`, {
         method: 'PATCH',
         headers,
+        allowGuest: allowGuestRequests,
         body: {
           full_name: guestAddress.full_name.trim(),
           phone: phone.trim(),
@@ -424,6 +428,7 @@ export default function CheckoutPage() {
     const created = await http<Address>('/api/addresses/', {
       method: 'POST',
       headers,
+      allowGuest: allowGuestRequests,
       body: {
         ...guestAddress,
         full_name: guestAddress.full_name.trim(),
@@ -483,7 +488,7 @@ export default function CheckoutPage() {
         // 200 on success; 202/400 are “not yet”
         const v = await http<VerifyResp>(
           `/api/payments/verify/${ref}/`,
-          { headers }
+          { headers, allowGuest: allowGuestRequests }
         );
         const ps = (v.payment_status || '').toLowerCase();
         if (ps === 'successful' || ps === 'success') {
@@ -531,6 +536,7 @@ export default function CheckoutPage() {
   const handlePaystackCheckout = async (preferredChannel: 'mobile_money' | 'card') => {
     try {
       if (paymentLocked) return;
+      if (user && (!hasHydrated || !authReady)) throw new Error('Please wait while your account is prepared.');
       if (!cart?.items?.length) throw new Error('Your cart is empty.');
       const checkoutAddressId = await ensureCheckoutAddress();
 
@@ -540,6 +546,7 @@ export default function CheckoutPage() {
       const init = await http<InitResp>('/api/payments/initialize_checkout_from_cart/', {
         method: 'POST',
         headers,
+        allowGuest: allowGuestRequests,
         body: {
           address_id: checkoutAddressId,
           note: note || '',

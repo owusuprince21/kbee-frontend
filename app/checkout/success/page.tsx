@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { http } from '@/lib/api/http';
 import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/authStore';
 
 type VerifyResp = {
   order_code?: string | null;
@@ -19,6 +20,7 @@ type VerifyResp = {
 function CheckoutSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, hasHydrated, authReady } = useAuthStore();
   const [savedCode, setSavedCode] = useState('');
   const [savedReceiptUrl, setSavedReceiptUrl] = useState('');
   const [verifying, setVerifying] = useState(false);
@@ -59,7 +61,9 @@ function CheckoutSuccessContent() {
 
     for (let attempt = 0; attempt < 24; attempt++) {
       try {
-        const result = await http<VerifyResp>(`/api/payments/verify/${ref}/`);
+        const result = await http<VerifyResp>(`/api/payments/verify/${ref}/`, {
+          allowGuest: !user,
+        });
         const status = (result.payment_status || '').toLowerCase();
         if (status === 'successful' || status === 'success') {
           clearPaymentState(result.order_code, result.receipt_url);
@@ -87,7 +91,7 @@ function CheckoutSuccessContent() {
   };
 
   useEffect(() => {
-    if (!reference || code) return;
+    if (!reference || code || !hasHydrated || !authReady) return;
     let cancelled = false;
 
     (async () => {
@@ -98,7 +102,7 @@ function CheckoutSuccessContent() {
     return () => {
       cancelled = true;
     };
-  }, [reference, code]);
+  }, [reference, code, hasHydrated, authReady, user]);
 
   if (verifying) {
     return (
